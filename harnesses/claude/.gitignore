@@ -1,0 +1,11 @@
+node_modules/
+.caveman-*
+.ponytail-*
+sessions/
+backups/
+cache/
+statsig/
+todos/
+shell-snapshots/
+.credentials.json
+skills/.system/
