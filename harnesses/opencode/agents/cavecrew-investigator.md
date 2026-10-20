@@ -1,0 +1,1 @@
+../../../agents/caveman/cavecrew-investigator.md

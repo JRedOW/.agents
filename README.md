@@ -6,38 +6,39 @@ Personal cross-platform agent configuration: shared skills, agents, and commands
 
 ```
 ~/.agents/
-├── AGENTS.md                 Shared global instructions (opencode AGENTS.md, Claude CLAUDE.md)
-├── skills/<name>/SKILL.md    Shared skills (Agent Skills spec)
-├── agents/<name>.md          Shared subagents
-├── commands/<name>.md        Shared slash commands
-├── harnesses/opencode/       opencode-specific config (symlinked as ~/.config/opencode)
+├── AGENTS.md                          Shared global instructions (opencode AGENTS.md, Claude CLAUDE.md)
+├── skills/<group>/<name>/SKILL.md     Shared skills (Agent Skills spec), grouped one level deep
+├── agents/[<group>/]<name>.md         Shared subagents (group folder optional)
+├── commands/[<group>/]<name>.md       Shared slash commands (group folder optional)
+├── harnesses/opencode/                opencode-specific config (symlinked as ~/.config/opencode)
 │   ├── opencode.json
 │   ├── plugins/
-│   ├── .gitignore            node_modules, package.json, package-lock.json, bun.lock
-│   ├── agents -> ../../agents
-│   ├── commands -> ../../commands
-│   └── AGENTS.md -> ../AGENTS.md
-├── harnesses/claude/         claude-specific config (symlinked as ~/.claude)
+│   ├── .gitignore                     node_modules, package.json, package-lock.json, bun.lock
+│   ├── AGENTS.md -> ../../AGENTS.md
+│   └── {agents,commands,skills}/      real dirs, one symlink per leaf item
+├── harnesses/claude/                  claude-specific config (symlinked as ~/.claude)
 │   ├── settings.json
-│   ├── .gitignore            sessions, caches, credentials, flags
-│   ├── skills/               per-skill symlinks -> ../../../skills/<name>
-│   ├── agents -> ../../agents
-│   ├── commands -> ../../commands
-│   └── CLAUDE.md -> ../AGENTS.md
-└── scripts/link.sh           Idempotent symlink wiring
+│   ├── .gitignore                     sessions, caches, credentials, flags
+│   ├── CLAUDE.md -> ../../AGENTS.md
+│   └── {agents,commands,skills}/      real dirs, one symlink per leaf item
+└── scripts/link.sh                    Idempotent symlink wiring
 ```
+
+Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agents/caveman/`). Harnesses stay flat: `link.sh` creates one symlink per leaf item, so tools never see the grouping. Folders starting with `.` are ignored by `link.sh` at any depth.
 
 ## How each tool finds things
 
-| Asset    | opencode                                       | Claude Code                 |
-| -------- | ---------------------------------------------- | --------------------------- |
-| Skills   | `~/.agents/skills/` (native)                   | `harnesses/claude/skills/` per-skill links |
-| Agents   | `harnesses/opencode/agents` -> hub             | `harnesses/claude/agents` -> hub |
-| Commands | `harnesses/opencode/commands` -> hub           | `harnesses/claude/commands` -> hub |
-| Context  | `harnesses/opencode/AGENTS.md` -> hub          | `harnesses/claude/CLAUDE.md` -> hub |
-| Config   | `~/.config/opencode` -> `harnesses/opencode/`  | `~/.claude` -> `harnesses/claude/` |
+| Asset    | opencode                                              | Claude Code                  |
+| -------- | ----------------------------------------------------- | ---------------------------- |
+| Skills   | `harnesses/opencode/skills/` per-item links           | `harnesses/claude/skills/` per-item links |
+| Agents   | `harnesses/opencode/agents/` per-item links           | `harnesses/claude/agents/` per-item links |
+| Commands | `harnesses/opencode/commands/` per-item links         | `harnesses/claude/commands/` per-item links |
+| Context  | `harnesses/opencode/AGENTS.md` -> `../../AGENTS.md`   | `harnesses/claude/CLAUDE.md` -> `../../AGENTS.md` |
+| Config   | `~/.config/opencode` -> `harnesses/opencode/`         | `~/.claude` -> `harnesses/claude/` |
 
-Claude Code scans skills one level deep only; do not nest skills. Never symlink `~/.claude/skills` itself at the top level (Claude writes `.system/` files into it); `harnesses/claude/skills/` is a real directory holding one symlink per skill.
+Never symlink a whole asset directory (`agents`, `commands`, `skills`) into a harness: nested hub groups would leak through. Claude Code namespaces commands inside subdirectories (`/group/cmd`), and opencode's scanners only match one level deep. `skills/` must also be a real directory, because Claude Code writes `.system/` files into it. `link.sh` keeps every harness flat with one symlink per leaf item.
+
+`link.sh` is required, not optional: once hub skills are grouped (`skills/<group>/<name>/SKILL.md`), no tool discovers them natively (native globs like `~/.agents/skills/*/SKILL.md` and `~/.config/opencode/skills/*/SKILL.md` only match one level). The per-item harness links are the only path that works for both tools.
 
 ## Setup on a new machine
 
@@ -46,7 +47,7 @@ git clone https://github.com/JRedOW/.agents.git ~/.agents
 ~/.agents/scripts/link.sh
 ```
 
-`link.sh` is idempotent, refuses to clobber real files, and prunes stale links pointing into the hub. Run it after adding skills, agents, or commands. Restart opencode and Claude Code afterward; config is not hot-reloaded.
+`link.sh` is idempotent, refuses to clobber real files, and prunes stale links pointing into the hub. Run it after cloning (required: harness links for all shared assets) and after adding skills, agents, or commands. Restart opencode and Claude Code afterward; config is not hot-reloaded.
 
 ## Ignored state
 
