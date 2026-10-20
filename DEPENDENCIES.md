@@ -11,6 +11,8 @@ Third-party dependencies used by this repo. Each dependency lists hub-level info
 | `context7` (remote MCP server)                                     | [https://github.com/upstash/context7](https://github.com/upstash/context7)               | hosted at `https://mcp.context7.com/mcp`, unpinned |
 
 
+---
+
 ## Ponytail
 
 ### opencode
@@ -27,6 +29,8 @@ To update:
 ### Claude Code
 
 Not installed yet.
+
+---
 
 ## Caveman
 
@@ -51,19 +55,19 @@ Note the plugin has known upstream issues referenced in `harnesses/opencode/plug
 
 ### Claude Code
 
-No Claude-specific files. It consumes the shared assets through symlinks, so the hub-level re-sync covers it.
+Not installed yet.
 
-## MCP servers
+---
 
-Hub-level: MCP config is per-tool by design; the hub only documents snippets to keep tools in sync (see [GUIDE.md](GUIDE.md), MCP servers section).
+## mcp-for-blender
 
-### mcp-for-blender
+Currently only in opencode, each harness requires a unique `BLENDER_PORT`.
 
 Local MCP server, formerly `blender-mcp`. Requires `uv`/`uvx` on PATH. Bare `uvx mcp-for-blender` starts the server directly. 
 
 Runs with `BLENDER_MCP_SAFE_MODE=1` set via the `environment` block, which enables the upstream tool-call validator.
 
-#### opencode
+### opencode
 
 Configured as above in `opencode.json`.
 
@@ -72,22 +76,19 @@ To update:
 1. Check the latest release on PyPI or the upstream repository (`mcp-for-blender`).
 2. Bump the `uvx mcp-for-blender@<version>` string in `opencode.json`.
 3. Restart opencode; uvx fetches the pinned version on first launch.
-4. Update the version in this file's table.
 
-#### Claude Code
+---
 
-Not configured. To add it (user scope): `claude mcp add -s user blender-mcp -- uvx mcp-for-blender@<version>` and mirror the safe-mode env var. Keep the version in step with the opencode pin.
-
-### context7
+## context7
 
 Remote MCP server; nothing is installed locally. Hosted at `https://mcp.context7.com/mcp`, unpinned.
 
-#### opencode
+### opencode
 
 Configured in `opencode.json` under `mcp`.
 
 To update: nothing to do. The server updates upstream. Keep config in `opencode.json` current if context7 changes its URL or API.
 
-#### Claude Code
+### Claude Code
 
-User-scope config, not tracked in this repo. Set it up with the snippet in [GUIDE.md](GUIDE.md) (MCP servers section); nothing to update locally.
+Not installed yet.

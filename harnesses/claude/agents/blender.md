@@ -1,1 +1,0 @@
-../../../agents/blender.md

@@ -1,1 +1,1 @@
-../../../agents/blender.md
+../../../agents/blender/blender.md
