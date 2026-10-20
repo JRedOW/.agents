@@ -47,7 +47,7 @@ git clone https://github.com/JRedOW/.agents.git ~/.agents
 ~/.agents/scripts/link.sh
 ```
 
-`link.sh` is idempotent, refuses to clobber real files, and prunes stale links pointing into the hub. Run it after cloning (required: harness links for all shared assets) and after adding skills, agents, or commands. Restart opencode and Claude Code afterward; config is not hot-reloaded.
+`link.sh` is idempotent, refuses to clobber real files, and prunes stale links pointing into the hub. Run it after cloning (required: harness links for all shared assets) and after adding skills, agents, or commands. Options: `--linkup` skips the harness-level symlinks (`~/.claude`, `~/.config/opencode`) and only does per-item links plus pruning; `--harness claude` or `--harness opencode` (repeatable, `all` allowed) limits work to selected harnesses. Restart opencode and Claude Code afterward; config is not hot-reloaded.
 
 ## Ignored state
 

@@ -13,6 +13,70 @@ HUB="$(cd "$(dirname "$0")/.." && pwd)"
 HARNESSES=(claude opencode)
 TYPES=(agents commands skills)
 
+LINKUP=0
+SELECTED=()
+
+usage() {
+  cat >&2 <<EOF
+usage: scripts/link.sh [--linkup] [--harness <name>] ...
+
+  (no options)    wire everything: harness-level symlinks plus per-item links
+  --linkup        per-item links and pruning only, skip harness-level symlinks
+  --harness NAME  limit work to one harness (claude, opencode); repeatable
+EOF
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --linkup)
+      LINKUP=1
+      ;;
+    --harness)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --harness needs a name" >&2
+        usage
+        exit 1
+      fi
+      case "$1" in
+        all)
+          if [ "${#SELECTED[@]}" -gt 0 ]; then
+            echo "error: --harness all combined with specific harnesses" >&2
+            exit 1
+          fi
+          ALL_REQUESTED=1
+          ;;
+        claude|opencode)
+          if [ "${ALL_REQUESTED:-0}" -eq 1 ]; then
+            echo "error: --harness all combined with specific harnesses" >&2
+            exit 1
+          fi
+          SELECTED+=("$1")
+          ;;
+        *)
+          echo "error: unknown harness '$1' (claude, opencode, or all)" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if [ "${ALL_REQUESTED:-0}" -eq 1 ] || [ "${#SELECTED[@]}" -eq 0 ]; then
+  SELECTED=("${HARNESSES[@]}")
+else
+  SELECTED=($(printf '%s\n' "${SELECTED[@]}" | awk '!s[$0]++'))
+fi
+
 link() {
   local link_path="$1" target="$2"
   if [ -L "$link_path" ]; then
@@ -81,38 +145,41 @@ sync_assets() {
 }
 
 prune_stale() {
-  local harness type dir entry target
-  for harness in "${HARNESSES[@]}"; do
-    for type in "${TYPES[@]}"; do
-      dir="$HUB/harnesses/$harness/$type"
-      # Real dirs only; never descend through a symlink.
-      [ -d "$dir" ] && [ ! -L "$dir" ] || continue
-      while IFS= read -r entry; do
-        target="$(readlink "$entry")"
-        case "$target" in
-          "$HUB"|"$HUB"/*|../*|..)
-            if [ ! -e "$entry" ]; then
-              rm "$entry"
-              echo "pruned  $entry (stale)"
-            fi
-            ;;
-        esac
-      done < <(find "$dir" -maxdepth 1 -type l)
-    done
+  local harness="$1" type dir entry target
+  for type in "${TYPES[@]}"; do
+    dir="$HUB/harnesses/$harness/$type"
+    # Real dirs only; never descend through a symlink.
+    [ -d "$dir" ] && [ ! -L "$dir" ] || continue
+    while IFS= read -r entry; do
+      target="$(readlink "$entry")"
+      case "$target" in
+        "$HUB"|"$HUB"/*|../*|..)
+          if [ ! -e "$entry" ]; then
+            rm "$entry"
+            echo "pruned  $entry (stale)"
+          fi
+          ;;
+      esac
+    done < <(find "$dir" -maxdepth 1 -type l)
   done
 }
 
-# opencode: one harness symlink
-link "$HOME/.config/opencode" "$HUB/harnesses/opencode"
+ext_link_path() {
+  case "$1" in
+    claude)   echo "$HOME/.claude" ;;
+    opencode) echo "$HOME/.config/opencode" ;;
+  esac
+}
 
-# claude code: one harness symlink
-link "$HOME/.claude" "$HUB/harnesses/claude"
+for harness in "${SELECTED[@]}"; do
+  if [ "$LINKUP" -ne 1 ]; then
+    # one harness-level symlink per selected harness
+    link "$(ext_link_path "$harness")" "$HUB/harnesses/$harness"
+  fi
 
-# prune stale per-item links inside each harness
-prune_stale
+  prune_stale "$harness"
 
-# per-item links for shared assets in every harness
-for harness in "${HARNESSES[@]}"; do
+  # per-item links for shared assets
   for type in "${TYPES[@]}"; do
     sync_assets "$harness" "$type"
   done
