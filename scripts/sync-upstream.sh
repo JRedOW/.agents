@@ -194,9 +194,11 @@ for t in "${ASSETS[@]}"; do
   if [ "$VIA_SKILLS" -eq 1 ]; then
     # npx skills flattens the pack into temp/.claude/skills/<skill>/
     [ "$t" = "skills" ] || continue
+    mkdir -p "$HUB/$t/$NAME"
     rsync -a --delete --exclude=.ignore "$SRC/" "$HUB/$t/$NAME/"
   else
     [ -d "$SRC/$t" ] || { echo "error: upstream has no $t/ dir" >&2; exit 1; }
+    mkdir -p "$HUB/$t/$NAME"
     rsync -a --delete --exclude=.ignore "$SRC/$t/" "$HUB/$t/$NAME/"
   fi
   if [ -n "$filter" ]; then
