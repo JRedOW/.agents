@@ -111,6 +111,7 @@ if [ "${#ASSETS[@]}" -eq 0 ]; then
 fi
 
 for t in "${ASSETS[@]}"; do
+  mkdir -p "$HUB/$t/$NAME"
   if [ "$VIA_SKILLS" -eq 1 ]; then
     # npx skills flattens the pack into temp/.claude/skills/<skill>/
     [ "$t" = "skills" ] || continue
