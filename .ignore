@@ -9,5 +9,8 @@
 #   !drafts/keep.md  re-include one path
 #   [claude] tmp/    scope a rule to one harness: claude or opencode
 #   [claude,opencode] tmp/   scope a rule to several harnesses
+#   <blender> tmp/   scope a rule to a profile: fires only when that
+#                    profile is selected via --profile. Tags may both
+#                    appear on one line, in either order: both must fire.
 #
 # Nothing is ignored until you add a pattern below.

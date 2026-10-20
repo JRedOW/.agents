@@ -27,7 +27,7 @@ Personal cross-platform agent configuration: shared skills, agents, and commands
 └── scripts/link.sh                    Idempotent symlink wiring
 ```
 
-Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agents/caveman/`). Harnesses stay flat: `link.sh` creates one symlink per leaf item, so tools never see the grouping. Exclusions are controlled by hierarchical `.ignore` files with gitignore-style syntax: the root `.ignore` covers the whole hub, and a `.ignore` in any subdirectory covers that directory and below. A leading `[claude]` or `[opencode]` tag scopes a rule to one harness; untagged rules apply to all.
+Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agents/caveman/`). Harnesses stay flat: `link.sh` creates one symlink per leaf item, so tools never see the grouping. Exclusions are controlled by hierarchical `.ignore` files with gitignore-style syntax: the root `.ignore` covers the whole hub, and a `.ignore` in any subdirectory covers that directory and below. A leading `[claude]` or `[opencode]` tag scopes a rule to one harness; untagged rules apply to all. A leading `<blender>` tag scopes a rule to a profile, fired only when `link.sh` runs with `--profile blender`; a line may carry both tags in either order, and both must match.
 
 ## How each tool finds things
 

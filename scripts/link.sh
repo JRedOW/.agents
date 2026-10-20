@@ -13,18 +13,22 @@ set -euo pipefail
 
 HUB="$(cd "$(dirname "$0")/.." && pwd)"
 HARNESSES=(claude opencode)
+PROFILES=(blender)
 TYPES=(agents commands skills)
 
 LINKUP=0
 SELECTED=()
+PROFILE_SELECTED=()
 
 usage() {
   cat >&2 <<EOF
-usage: scripts/link.sh [--linkup] [--harness <name>] ...
+usage: scripts/link.sh [--linkup] [--harness <name>] ... [--profile <name>] ...
 
   (no options)    wire everything: harness-level symlinks plus per-item links
   --linkup        per-item links and pruning only, skip harness-level symlinks
   --harness NAME  limit work to one harness (claude, opencode); repeatable
+  --profile NAME  activate a profile (blender) so <name>-tagged .ignore
+                  rules fire; repeatable
 EOF
 }
 
@@ -61,6 +65,21 @@ while [ "$#" -gt 0 ]; do
           ;;
       esac
       ;;
+    --profile)
+      shift
+      if [ "$#" -eq 0 ]; then
+        echo "error: --profile needs a name" >&2
+        usage
+        exit 1
+      fi
+      case " ${PROFILES[*]} " in
+        *" $1 "*) PROFILE_SELECTED+=("$1") ;;
+        *)
+          echo "error: unknown profile '$1' (${PROFILES[*]})" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     -h|--help)
       usage
       exit 0
@@ -77,6 +96,9 @@ if [ "${ALL_REQUESTED:-0}" -eq 1 ] || [ "${#SELECTED[@]}" -eq 0 ]; then
   SELECTED=("${HARNESSES[@]}")
 else
   SELECTED=($(printf '%s\n' "${SELECTED[@]}" | awk '!s[$0]++'))
+fi
+if [ "${#PROFILE_SELECTED[@]}" -gt 0 ]; then
+  PROFILE_SELECTED=($(printf '%s\n' "${PROFILE_SELECTED[@]}" | awk '!s[$0]++'))
 fi
 
 link() {
@@ -105,8 +127,11 @@ link() {
 # last match wins, so ! re-includes. Unlike git, ! can also re-include
 # paths under an excluded directory. Syntax: # comments, blank lines, *,
 # ?, **, trailing / (dirs only), leading or inner / (anchored to the
-# file's directory), ! negation, and an optional leading [harness,...]
-# tag (claude, opencode) scoping the rule to those harnesses.
+# file's directory), ! negation, and optional leading tags scoping the
+# rule: [harness,...] (claude, opencode) and <profile,...> (blender).
+# Tags may both appear on one line in either order; both must fire for
+# the rule to apply, names inside a tag are OR. A rule with a profile
+# tag only fires when one of its profiles is selected via --profile.
 
 # regex_escape_char <char>: print <char> as a literal in a POSIX ERE
 regex_escape_char() {
@@ -198,42 +223,61 @@ parse_rule() {
 }
 
 # load_ignore_file <base> <harness> <file>: parse one .ignore into the
-# RULE_* arrays. Rules tagged for other harnesses are dropped; unknown
-# harness names in a tag warn and skip the rule.
+# RULE_* arrays. Rules tagged for other harnesses or inactive profiles
+# are dropped; unknown names in a tag warn and skip the rule.
 load_ignore_file() {
   local base="$1" harness="$2" file="$3"
-  local line tag name ok ln=0 re
+  local line ok ln=0 ln2
   local -a tag_names
-  re='^\[([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)\][[:space:]]*(.*)$'
-  # || [ -n "$line" ] keeps a final line that lacks a trailing newline
+  local TAG_RE='^([\[<])([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)[]\>][[:space:]]*(.*)$'
   while IFS= read -r line || [ -n "$line" ]; do
     ln=$((ln+1))
     line="${line%$'\r'}"
     case "$line" in
       ''|'#'*) continue ;;
     esac
-    if [[ "$line" =~ $re ]]; then
-      tag="${BASH_REMATCH[1]}"
-      line="${BASH_REMATCH[3]}"
+    # leading tags (either order, harness [] and profile <>) are ANDed
+    while [[ "$line" =~ $TAG_RE ]]; do
+      ln2="$ln"
       ok=1
-      IFS=',' read -r -a tag_names <<< "$tag"
-      for name in "${tag_names[@]}"; do
-        case " ${HARNESSES[*]} " in
-          *" $name "*) ;;
-          *)
-            echo "WARN    $file:$ln unknown harness '$name' in tag, rule skipped" >&2
-            ok=0
-            ;;
+      IFS=',' read -r -a tag_names <<< "${BASH_REMATCH[2]}"
+      if [ "${BASH_REMATCH[1]}" = '[' ]; then
+        for name in "${tag_names[@]}"; do
+          case " ${HARNESSES[*]} " in
+            *" $name "*) ;;
+            *)
+              echo "WARN    $file:$ln2 unknown harness '$name' in tag, rule skipped" >&2
+              ok=0
+              ;;
+          esac
+        done
+        case " ${tag_names[*]} " in
+          *" $harness "*) ;;
+          *) continue 2 ;;
         esac
-      done
-      if [ "$ok" -ne 1 ]; then
-        continue
+      else
+        for name in "${tag_names[@]}"; do
+          case " ${PROFILES[*]} " in
+            *" $name "*) ;;
+            *)
+              echo "WARN    $file:$ln2 unknown profile '$name' in tag, rule skipped" >&2
+              ok=0
+              ;;
+          esac
+        done
+        local fires=1 psel="${PROFILE_SELECTED[*]-}"
+        for name in "${tag_names[@]}"; do
+          case " $psel " in
+            *" $name "*) fires=0 ;;
+          esac
+        done
+        [ "$fires" -eq 1 ] && continue 2
       fi
-      case " ${tag_names[*]} " in
-        *" $harness "*) ;;
-        *) continue ;;
-      esac
-    fi
+      if [ "$ok" -ne 1 ]; then
+        continue 2
+      fi
+      line="${BASH_REMATCH[4]}"
+    done
     parse_rule "$base" "$line"
   done < "$file"
 }

@@ -34,9 +34,10 @@ assert_link() {
 
 make_skill() { mkdir -p "$1" && printf 'x\n' > "$1/SKILL.md"; }
 
-# run <hub> <harness> [stderr-file]
+# run <hub> <harness> [stderr-file] [profile1] [profile2]
 run() {
-  (cd "$1" && /bin/bash scripts/link.sh --linkup --harness "$2") \
+  (cd "$1" && /bin/bash scripts/link.sh --linkup --harness "$2" \
+    ${4+--profile "$4"} ${5+--profile "$5"}) \
     2>"${3:-/dev/null}" >/dev/null
 }
 
@@ -123,7 +124,40 @@ assert_link "deep-nested agent file links"     "$H3" claude   agents nested.md  
 assert_link "shallow agent file links"         "$H3" claude   agents two.md          linked
 assert_link "deep .ignore rule prunes skill"   "$H3" claude   skills scratch         absent
 
+# --- hub 4: profile tags -------------------------------------------------------
+
+H4="$TMP/hub4"
+mkdir -p "$H4/scripts" "$H4/harnesses/claude" "$H4/harnesses/opencode"
+cp "$ROOT/scripts/link.sh" "$H4/scripts/link.sh"
+make_skill "$H4/skills/skillA"
+make_skill "$H4/skills/skillB"
+make_skill "$H4/skills/ghost2"
+
+cat > "$H4/.ignore" <<'EOF'
+<blender> skillA/
+[claude] <blender> skillB/
+<codign> ghost2/
+EOF
+
+run "$H4" claude
+assert_link "profile rule inert without --profile"    "$H4" claude   skills skillA       linked
+run "$H4" claude "" blender
+assert_link "profile-selected rule fires"            "$H4" claude   skills skillA       absent
+assert_link "harness+profile AND fires (claude)"     "$H4" claude   skills skillB       absent
+run "$H4" opencode "" blender
+assert_link "profile-selected rule fires (opencode)" "$H4" opencode skills skillA       absent
+assert_link "harness+profile AND holds (opencode)"   "$H4" opencode skills skillB       linked
+rm -rf "$H4/harnesses/claude" "$H4/harnesses/opencode"
+mkdir -p "$H4/harnesses/claude" "$H4/harnesses/opencode"
+run "$H4" claude "$TMP/profile.err"
+if grep -q "unknown profile 'codign'" "$TMP/profile.err"; then
+  pass "unknown profile warns with name"
+else
+  die "unknown profile warns with name"
+fi
+assert_link "unknown profile rule is inert"          "$H4" claude   skills ghost2       linked
+
 if [ "$fail" -eq 0 ]; then
-  echo "all tests passed"
+    echo "all tests passed"
 fi
 exit "$fail"
