@@ -16,6 +16,9 @@
 #                  src file -> file copied into dst
 #   --no-link      skip scripts/link.sh after syncing
 #
+# .ignore files are local-only: every rsync excludes them, so local ones
+# survive --delete and upstream ones are never copied in.
+#
 # NAME must not contain slashes. If OWNER/REPO is a full git URL it is cloned
 # verbatim, otherwise https://github.com/OWNER/REPO is used.
 #
@@ -111,10 +114,10 @@ for t in "${ASSETS[@]}"; do
   if [ "$VIA_SKILLS" -eq 1 ]; then
     # npx skills flattens the pack into temp/.claude/skills/<skill>/
     [ "$t" = "skills" ] || continue
-    rsync -a --delete "$SRC/" "$HUB/$t/$NAME/"
+    rsync -a --delete --exclude=.ignore "$SRC/" "$HUB/$t/$NAME/"
   else
     [ -d "$SRC/$t" ] || { echo "error: upstream has no $t/ dir" >&2; exit 1; }
-    rsync -a --delete "$SRC/$t/" "$HUB/$t/$NAME/"
+    rsync -a --delete --exclude=.ignore "$SRC/$t/" "$HUB/$t/$NAME/"
   fi
   echo "synced $t/$NAME/ ($(find "$HUB/$t/$NAME" -type f | wc -l | tr -d ' ') files)"
 done
@@ -128,9 +131,9 @@ for raw in "${RAW_MAPPINGS[@]:-}"; do
   [ -e "$SRC/$src" ] || { echo "error: upstream path not found: $src" >&2; exit 1; }
   mkdir -p "$HUB/$dst"
   if [ -f "$SRC/$src" ]; then
-    rsync -a "$SRC/$src" "$HUB/$dst/"
+    rsync -a --exclude=.ignore "$SRC/$src" "$HUB/$dst/"
   else
-    rsync -a --delete "$SRC/$src/" "$HUB/$dst/"
+    rsync -a --delete --exclude=.ignore "$SRC/$src/" "$HUB/$dst/"
   fi
   echo "synced $dst/ (raw: $src)"
 done
