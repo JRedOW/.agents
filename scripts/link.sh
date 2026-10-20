@@ -204,7 +204,8 @@ load_ignore_file() {
   local line tag name ok ln=0 re
   local -a tag_names
   re='^\[([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)\][[:space:]]*(.*)$'
-  while IFS= read -r line; do
+  # || [ -n "$line" ] keeps a final line that lacks a trailing newline
+  while IFS= read -r line || [ -n "$line" ]; do
     ln=$((ln+1))
     line="${line%$'\r'}"
     case "$line" in
