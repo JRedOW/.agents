@@ -7,6 +7,8 @@ Personal cross-platform agent configuration: shared skills, agents, and commands
 ```
 ~/.agents/
 ├── AGENTS.md                          Shared global instructions (opencode AGENTS.md, Claude CLAUDE.md)
+├── DEPENDENCIES.md                    Third-party dependency inventory + update guides
+├── HARNESSES.md                       Installed harness versions + update guides
 ├── skills/<group>/<name>/SKILL.md     Shared skills (Agent Skills spec), grouped one level deep
 ├── agents/[<group>/]<name>.md         Shared subagents (group folder optional)
 ├── commands/[<group>/]<name>.md       Shared slash commands (group folder optional)

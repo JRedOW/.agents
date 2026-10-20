@@ -13,7 +13,7 @@
       "head *": "allow",
       "tail *": "allow"
     },
-    "blender-mcp*": "deny",
+    "mcp_for_blender*": "deny",
     "context7_query-docs": {
       "*": "allow"
     },
@@ -69,8 +69,11 @@
       "type": "local",
       "command": [
         "uvx",
-        "blender-mcp"
+        "mcp-for-blender@2.2.0"
       ],
+      "environment": {
+        "BLENDER_MCP_SAFE_MODE": "1"
+      },
       "enabled": true
     },
     "context7": {

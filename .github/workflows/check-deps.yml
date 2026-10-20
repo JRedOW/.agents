@@ -1,0 +1,14 @@
+name: check-deps
+
+on:
+  schedule:
+    # daily at 08:00 UTC
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/check-deps.sh
