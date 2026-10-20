@@ -5,8 +5,9 @@ Third-party dependencies used by this repo. Each dependency lists hub-level info
 
 | Dependency                                                         | Repository                                                                               | Local version                                      |
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `@dietrichgebert/ponytail` (opencode plugin)                       | [https://github.com/dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) | 5.3.2 (github dietrichgebert/ponytail)             |
+| `@dietrichgebert/ponytail` (plugins)                               | [https://github.com/dietrichgebert/ponytail](https://github.com/dietrichgebert/ponytail) | 5.3.2 (github dietrichgebert/ponytail)             |
 | caveman suite (vendored skills, agents, commands, opencode plugin) | [https://github.com/JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman)     | 4.0.1 (github JuliusBrussee/caveman)               |
+| mattpocock skills suite (vendored skills)                          | [https://github.com/mattpocock/skills](https://github.com/mattpocock/skills)             | 1.3.1 (github mattpocock/skills)                   |
 | `mcp-for-blender` (MCP server, via `uvx`, formerly `blender-mcp`)  | [https://github.com/ahujasid/mcp-for-blender](https://github.com/ahujasid/mcp-for-blender) | 2.2.2 (pypi mcp-for-blender)                       |
 | `context7` (remote MCP server)                                     | [https://github.com/upstash/context7](https://github.com/upstash/context7)               | hosted at `https://mcp.context7.com/mcp`, unpinned |
 
@@ -38,14 +39,12 @@ Vendored from `JuliusBrussee/caveman`. Files live in `skills/caveman/`, `agents/
 
 Shared skills, agents, and commands reach both harnesses through the per-item symlinks created by `scripts/link.sh`.
 
-To re-sync (hub level):
+To re-sync (hub level, run `scripts/sync-upstream.sh`):
 
-1. Clone upstream into a scratch dir: `git clone https://github.com/JuliusBrussee/caveman /tmp/caveman-src`
-2. Diff each vendored area against upstream equivalents (`skills/`, `agents/`, `commands/`, plugin sources) and inspect local-only changes before overwriting anything.
-3. Re-copy changed files, preserving any local modifications you want to keep.
-4. Run `~/.agents/scripts/link.sh` to refresh harness symlinks.
-5. Restart opencode and Claude Code.
-6. Update the version note in this file's table if upstream marked a release.
+1. `scripts/sync-upstream.sh caveman JuliusBrussee/caveman --raw plugins/caveman:harnesses/opencode/plugins/caveman`
+2. Review `git status` / `git diff` before committing. Note the script syncs full upstream dirs with `rsync --delete`, so it can add items beyond the current vendored subset (and its duplicate-name check warns about harness link collisions). Opt unwanted items out of linking with `.ignore` rules, or delete them from the vendored dirs before committing.
+3. Restart opencode and Claude Code.
+4. Update the version note in this file's table if upstream marked a release.
 
 ### opencode
 
@@ -56,6 +55,32 @@ Note the plugin has known upstream issues referenced in `harnesses/opencode/plug
 ### Claude Code
 
 Not installed yet.
+
+---
+
+## mattpocock
+
+Vendored from `mattpocock/skills`. Skills live flat in `skills/mattpocock/<skill>/`; upstream's `skills/engineering/` and `skills/productivity/` groups are flattened by the fetcher.
+
+Shared skills reach both harnesses through the per-item symlinks created by `scripts/link.sh`. Upstream ships skills only; no agents or commands.
+
+To update (hub level):
+
+1. `scripts/sync-upstream.sh mattpocock mattpocock/skills --via skills skills`
+   The `--via skills` mode fetches and validates through the official `npx skills` CLI (`npx skills add --skill '*' --copy` into a temp dir) instead of a plain clone. It requires Node >= 22.20.
+2. Review `git status` / `git diff` before committing. The `rsync --delete` also removes skills deleted upstream.
+3. The script re-runs `scripts/link.sh`; restart opencode and Claude Code.
+4. Update the version in this file's table (latest release tag).
+
+Note: `npx skills update` tracks only skills it installed itself (via its lockfiles), so it cannot drive these vendored copies; the re-sync command above is the update path.
+
+### opencode
+
+No per-harness files; covered by the hub-level `link.sh` links.
+
+### Claude Code
+
+No per-harness files; covered by the hub-level `link.sh` links.
 
 ---
 
