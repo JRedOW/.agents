@@ -1,6 +1,9 @@
-node_modules/
+# Local install/runtime artifacts for this checkout; not repo content
 bun.lock
 package.json
 package-lock.json
-.caveman-*
-.ponytail-*
+
+# Managed by Orca. Do not edit; changes may be overwritten.
+plugins/orca-opencode-status.js
+plugins/orca-opencode-status-tui/
+tui.json

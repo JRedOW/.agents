@@ -1,11 +1,13 @@
-node_modules/
-.caveman-*
-.ponytail-*
+# Claude Code session/resume state; large and machine-local
 sessions/
 backups/
 cache/
 statsig/
 todos/
 shell-snapshots/
+
+# Secrets; never commit or deploy
 .credentials.json
+
+# Shipped by Claude Code itself; churns with app updates
 skills/.system/
