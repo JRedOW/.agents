@@ -56,6 +56,7 @@ new_upstream() {
   make_skill "$up/skills/b"
   mkdir -p "$up/agents" "$up/commands"
   printf 'agent\n' >"$up/agents/x.md"
+  printf 'agent2\n' >"$up/agents/y.md"
   printf 'command\n' >"$up/commands/x.md"
   mkdir -p "$up/extra/plugin"
   printf 'entry\n' >"$up/extra/plugin/index.js"
@@ -142,25 +143,87 @@ if command -v npx >/dev/null 2>&1; then
     a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] >= b[2])))
   ' 2>/dev/null || echo false)
 fi
-UP2="$TMP/up-pack"
-mkdir -p "$UP2/engineering/alpha" "$UP2/productivity/beta"
-make_skill "$UP2/engineering/alpha"
-make_skill "$UP2/productivity/beta"
+  UP2="$TMP/up-pack"
+  mkdir -p "$UP2/engineering/alpha" "$UP2/productivity/beta"
+  make_skill "$UP2/engineering/alpha"
+  make_skill "$UP2/productivity/beta"
+  git init -q -b main "$UP2"
+  git -C "$UP2" add -A
+  git -C "$UP2" -c user.email=t@localhost -c user.name=test commit -qm init
+  git -C "$UP2" -c user.email=t@localhost -c user.name=test tag v1.0.0
+  make_skill "$UP2/engineering/gamma"
+  git -C "$UP2" add -A
+  git -C "$UP2" -c user.email=t@localhost -c user.name=test commit -qm gamma
 
-if [ "$NODE_OK" != "true" ]; then
-  skip "--via skills fetch (Node >= 22.20 unavailable)"
-else
-  H5="$TMP/hub-via"
-  new_hub "$H5"
-  if OUT=$(sync "$H5" viadep "$UP2" --via skills --no-link skills); then
-    assert_dir "via skills fetch syncs grouped skill 1" "$H5/skills/viadep/alpha"
-    assert_dir "via skills fetch syncs grouped skill 2" "$H5/skills/viadep/beta"
-    grep -q "name: alpha" "$H5/skills/viadep/alpha/SKILL.md" \
-      && pass "via skills fetch keeps frontmatter" || die "frontmatter mangled"
+  if [ "$NODE_OK" != "true" ]; then
+    skip "--via skills fetch (Node >= 22.20 unavailable)"
   else
-    die "--via skills fetch failed: $OUT"
+    H5="$TMP/hub-via"
+    new_hub "$H5"
+    if OUT=$(sync "$H5" viadep "$UP2" --via skills --no-link skills); then
+      assert_dir "via skills fetch syncs grouped skill 1" "$H5/skills/viadep/alpha"
+      assert_dir "via skills fetch syncs grouped skill 2" "$H5/skills/viadep/beta"
+      grep -q "name: alpha" "$H5/skills/viadep/alpha/SKILL.md" \
+        && pass "via skills fetch keeps frontmatter" || die "frontmatter mangled"
+    else
+      die "--via skills fetch failed: $OUT"
+    fi
+
+    # 8. --via skills with #REF pins content to the tagged commit.
+    H5b="$TMP/hub-via-ref"
+    new_hub "$H5b"
+    if OUT=$(sync "$H5b" viref "$UP2#v1.0.0" --via skills --no-link skills); then
+      assert_dir "via ref syncs tagged skill" "$H5b/skills/viref/alpha"
+      assert_gone "via ref excludes post-tag skill" "$H5b/skills/viref/gamma"
+    else
+      die "--via skills with ref failed: $OUT"
+    fi
   fi
-fi
+
+  # 9. type=item lists vendor only the listed items; .ignore survives.
+  H6="$TMP/hub-filter"
+  new_hub "$H6"
+  mkdir -p "$H6/skills/testdep"
+  printf '# local rules\n' >"$H6/skills/testdep/.ignore"
+  sync "$H6" testdep "$UP_URL" --no-link skills=a agents=x >/dev/null
+  assert_dir "filter syncs listed skill" "$H6/skills/testdep/a"
+  assert_gone "filter prunes unlisted skill" "$H6/skills/testdep/b"
+  assert_gone "filter prunes unlisted agent file" "$H6/agents/testdep/y.md"
+  [ -f "$H6/agents/testdep/x.md" ] && pass "filter keeps listed agent (name without .md)" \
+    || die "agent name-without-.md filter match failed"
+  [ -f "$H6/skills/testdep/.ignore" ] && pass "filter keeps .ignore" || die ".ignore destroyed"
+
+  # 10. --raw file src to a dst that is not a directory renames the file.
+  H7="$TMP/hub-rename"
+  new_hub "$H7"
+  sync "$H7" testdep "$UP_URL" --no-link \
+    --raw extra/notes.md:harnesses/opencode/plugins/renamed/renamed.cjs >/dev/null
+  [ -f "$H7/harnesses/opencode/plugins/renamed/renamed.cjs" ] \
+    && pass "--raw renames file to exact dst path" || die "--raw rename failed"
+  grep -q 'note' "$H7/harnesses/opencode/plugins/renamed/renamed.cjs" \
+    && pass "--raw renamed file has upstream content" || die "renamed file content wrong"
+
+  # 11. #REF pins git-mode syncs to a tag; unknown refs fail loudly.
+  git -C "$UP" -c user.email=t@localhost -c user.name=test tag v1.2.3
+  printf 'changed\n' >>"$UP/skills/a/SKILL.md"
+  git -C "$UP" add -A
+  git -C "$UP" -c user.email=t@localhost -c user.name=test commit -qm post-tag
+  H8="$TMP/hub-refs"
+  new_hub "$H8"
+  sync "$H8" testdep "$UP_URL#v1.2.3" --no-link skills >/dev/null
+  if grep -q 'changed' "$H8/skills/testdep/a/SKILL.md"; then
+    die "pinned sync picked up post-tag content"
+  else
+    pass "pinned sync uses tagged content"
+  fi
+  sync "$H8" testdep "$UP_URL" --no-link skills >/dev/null
+  grep -q 'changed' "$H8/skills/testdep/a/SKILL.md" \
+    && pass "unpinned sync tracks main" || die "main sync missing post-tag content"
+  if sync "$H8" testdep "$UP_URL#v9.9.9" --no-link skills >/dev/null 2>&1; then
+    die "unknown ref accepted"
+  else
+    pass "unknown ref rejected"
+  fi
 
 if [ "$fail" -eq 0 ]; then
   echo "all tests passed"

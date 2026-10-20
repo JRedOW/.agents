@@ -5,25 +5,36 @@
 # the hub's per-source group dir (skills/NAME/, agents/NAME/, commands/NAME/),
 # then refreshes harness symlinks via scripts/link.sh.
 #
-# usage: scripts/sync-upstream.sh NAME OWNER/REPO [options] [skills|agents|commands...]
+# usage: scripts/sync-upstream.sh NAME OWNER/REPO[#REF] [options] [types...]
 #
 # options:
 #   --via skills   fetch skill-pack repos through `npx skills` instead of git
 #                  clone (validates SKILL.md frontmatter and flattens grouped
-#                  upstream layouts into one skill per dir)
-#   --raw src:dst  extra mapping, dst is always a hub directory (repeatable):
-#                  src dir  -> contents copied into dst (dst extras deleted)
-#                  src file -> file copied into dst
+#                  upstream layouts into one skill per dir). With #REF the
+#                  source is pinned: cloned at REF first, then `npx skills`
+#                  runs against the local clone.
+#   --raw src:dst  extra mapping, dst is a hub path (repeatable):
+#                  src dir  -> contents copied into dst dir (dst extras deleted)
+#                  src file -> file copied into dst dir when dst ends in /
+#                              or dst already is a directory, else dst is the
+#                              exact file path (copy renames the file)
 #   --no-link      skip scripts/link.sh after syncing
 #
-# .ignore files are local-only: every rsync excludes them, so local ones
-# survive --delete and upstream ones are never copied in.
+# Types: skills | agents | commands, each optionally followed by "=items"
+# (comma-separated names exact for skills, with or without .md for
+# agents/commands files). Only the listed items stay in the group dir;
+# everything else is pruned. Local .ignore files survive every sync.
+# Without "=items" the whole upstream dir syncs.
 #
 # NAME must not contain slashes. If OWNER/REPO is a full git URL it is cloned
-# verbatim, otherwise https://github.com/OWNER/REPO is used.
+# verbatim, otherwise https://github.com/OWNER/REPO is used. #REF (tag or
+# branch) pins the fetch, so what lands in the hub stays reproducible until
+# the ref is bumped.
 #
 # examples:
-#   scripts/sync-upstream.sh mattpocock mattpocock/skills --via skills skills
+#   scripts/sync-upstream.sh mattpocock mattpocock/skills#v1.3.1 --via skills skills
+#   scripts/sync-upstream.sh caveman JuliusBrussee/caveman#v4.0.1 \
+#     skills=a,b agents=x.md --raw src/hooks/x.js:plugins/caveman/x.cjs
 #   scripts/sync-upstream.sh suite LessiaBear/example --raw skills/x:skills/suite/x
 
 set -euo pipefail
@@ -31,12 +42,12 @@ set -euo pipefail
 HUB="$(cd "$(dirname "$0")/.." && pwd)"
 
 if [ "$#" -lt 2 ]; then
-  sed -n '2,27p' "$0" >&2
+  sed -n '2,39p' "$0" >&2
   exit 1
 fi
 
 NAME="$1"
-REPO="$2"
+REPOSPEC="$2"
 shift 2
 
 if [[ "$NAME" == */* ]]; then
@@ -44,10 +55,20 @@ if [[ "$NAME" == */* ]]; then
   exit 1
 fi
 
+REF=""
+REPO="$REPOSPEC"
+case "$REPOSPEC" in
+  *"#"*)
+    REF="${REPOSPEC##*#}"
+    REPO="${REPOSPEC%%#*}"
+    ;;
+esac
+
 VIA_SKILLS=0
 NO_LINK=0
 RAW_MAPPINGS=()
 ASSETS=()
+FILTERS=()
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -71,13 +92,21 @@ while [ "$#" -gt 0 ]; do
       NO_LINK=1
       shift
       ;;
+    skills=*|agents=*|commands=*)
+      list="${1#*=}"
+      [ -n "$list" ] || { echo "error: empty item list in '$1'" >&2; exit 1; }
+      ASSETS+=("${1%%=*}")
+      FILTERS+=("$list")
+      shift
+      ;;
     skills|agents|commands)
       ASSETS+=("$1")
+      FILTERS+=("")
       shift
       ;;
     *)
       echo "error: unknown argument '$1'" >&2
-      sed -n '2,27p' "$0" >&2
+      sed -n '2,39p' "$0" >&2
       exit 1
       ;;
   esac
@@ -86,20 +115,68 @@ done
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# prune_from_filter <group_dir> <comma-separated items>: remove every entry
+# not named in the item list (basename, or basename without a trailing .md
+# for agent/command files). .ignore survives: it is hub-local.
+prune_from_filter() {
+  local dir="$1" items="$2" entry base
+  for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+    [ -e "$entry" ] || continue
+    base="${entry##*/}"
+    [ "$base" = ".ignore" ] && continue
+    case ",$items," in
+      *",$base,"*|*",${base%.md},"*) : ;;
+      *) rm -rf "$entry" ;;
+    esac
+  done
+}
+
+# raw_dst_is_dir <dst>: dst names a hub directory — explicitly when it ends
+# in /, or implicitly when the path already exists as a directory.
+# Otherwise a --raw file src is written at that exact path (renamed).
+raw_dst_is_dir() {
+  case "$1" in
+    */) return 0 ;;
+  esac
+  [ -d "$HUB/$1" ]
+}
+
 if [ "$VIA_SKILLS" -eq 1 ]; then
-  echo "fetching skill pack $REPO via npx skills..."
-  (cd "$TMP" && \
-    DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 npx skills@latest add "$REPO" \
-      --skill '*' --copy -a claude-code -y >"$TMP/npx-skills.log" 2>&1) \
-  || { echo "error: npx skills add failed; log:" >&2; cat "$TMP/npx-skills.log" >&2; exit 1; }
-  SRC="$TMP/.claude/skills"
+  if [ -n "$REF" ]; then
+    echo "cloning $REPOSPEC (pinned)..."
+    case "$REPO" in
+      *://*|*@*:*/*|/*) URL="$REPO" ;;
+      *) URL="https://github.com/$REPO" ;;
+    esac
+    git clone --depth 1 --branch "$REF" "$URL" "$TMP/repo" >/dev/null 2>&1 \
+      || { echo "error: could not clone $URL at ref '$REF'" >&2; exit 1; }
+    echo "fetching skills from local clone via npx skills..."
+    (cd "$TMP" && \
+      DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 npx skills@latest add "$TMP/repo" \
+        --skill '*' --copy -a claude-code -y >"$TMP/npx-skills.log" 2>&1) \
+    || { echo "error: npx skills add failed; log:" >&2; cat "$TMP/npx-skills.log" >&2; exit 1; }
+    SRC="$TMP/.claude/skills"
+  else
+    echo "fetching skill pack $REPO via npx skills..."
+    (cd "$TMP" && \
+      DISABLE_TELEMETRY=1 DO_NOT_TRACK=1 npx skills@latest add "$REPO" \
+        --skill '*' --copy -a claude-code -y >"$TMP/npx-skills.log" 2>&1) \
+    || { echo "error: npx skills add failed; log:" >&2; cat "$TMP/npx-skills.log" >&2; exit 1; }
+    SRC="$TMP/.claude/skills"
+  fi
 else
   case "$REPO" in
-    *://*|*@*:*/*) URL="$REPO" ;;
+    *://*|*@*:*/*|/*) URL="$REPO" ;;
     *) URL="https://github.com/$REPO" ;;
   esac
-  echo "fetching $URL..."
-  git clone --depth 1 "$URL" "$TMP/repo" >/dev/null 2>&1
+  if [ -n "$REF" ]; then
+    echo "cloning $URL at ref '$REF'..."
+    git clone --depth 1 --branch "$REF" "$URL" "$TMP/repo" >/dev/null 2>&1 \
+      || { echo "error: could not clone $URL at ref '$REF'" >&2; exit 1; }
+  else
+    echo "fetching $URL..."
+    git clone --depth 1 "$URL" "$TMP/repo" >/dev/null 2>&1
+  fi
   SRC="$TMP/repo"
 fi
 
@@ -110,8 +187,10 @@ if [ "${#ASSETS[@]}" -eq 0 ]; then
   [ "${#ASSETS[@]}" -gt 0 ] || { echo "error: no skills/agents/commands dirs found upstream" >&2; exit 1; }
 fi
 
+i=0
 for t in "${ASSETS[@]}"; do
-  mkdir -p "$HUB/$t/$NAME"
+  filter=""
+  [ "$i" -lt "${#FILTERS[@]}" ] && filter="${FILTERS[i]}"
   if [ "$VIA_SKILLS" -eq 1 ]; then
     # npx skills flattens the pack into temp/.claude/skills/<skill>/
     [ "$t" = "skills" ] || continue
@@ -120,7 +199,11 @@ for t in "${ASSETS[@]}"; do
     [ -d "$SRC/$t" ] || { echo "error: upstream has no $t/ dir" >&2; exit 1; }
     rsync -a --delete --exclude=.ignore "$SRC/$t/" "$HUB/$t/$NAME/"
   fi
+  if [ -n "$filter" ]; then
+    prune_from_filter "$HUB/$t/$NAME" "$filter"
+  fi
   echo "synced $t/$NAME/ ($(find "$HUB/$t/$NAME" -type f | wc -l | tr -d ' ') files)"
+  i=$((i+1))
 done
 
 for raw in "${RAW_MAPPINGS[@]:-}"; do
@@ -130,13 +213,19 @@ for raw in "${RAW_MAPPINGS[@]:-}"; do
     *) echo "error: --raw needs src:dst, got '$raw'" >&2; exit 1 ;;
   esac
   [ -e "$SRC/$src" ] || { echo "error: upstream path not found: $src" >&2; exit 1; }
-  mkdir -p "$HUB/$dst"
-  if [ -f "$SRC/$src" ]; then
-    rsync -a --exclude=.ignore "$SRC/$src" "$HUB/$dst/"
-  else
+  if [ ! -f "$SRC/$src" ]; then
+    mkdir -p "$HUB/$dst"
     rsync -a --delete --exclude=.ignore "$SRC/$src/" "$HUB/$dst/"
+    echo "synced $dst/ (raw: $src)"
+  elif raw_dst_is_dir "$dst"; then
+    mkdir -p "$HUB/$dst"
+    rsync -a --exclude=.ignore "$SRC/$src" "$HUB/$dst/"
+    echo "synced $dst/ (raw: $src)"
+  else
+    mkdir -p "$HUB/$(dirname "$dst")"
+    rsync -a --exclude=.ignore "$SRC/$src" "$HUB/$dst"
+    echo "synced $dst (raw: $src)"
   fi
-  echo "synced $dst/ (raw: $src)"
 done
 
 # Warn when one skill dir basename exists under more than one hub source
@@ -155,4 +244,4 @@ if [ "$NO_LINK" -eq 0 ]; then
   "$HUB/scripts/link.sh"
 fi
 
-echo "done: $NAME synced from $REPO"
+echo "done: $NAME synced from $REPOSPEC"

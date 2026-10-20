@@ -35,26 +35,51 @@ Not installed yet.
 
 ## Caveman
 
-Vendored from `JuliusBrussee/caveman`. Files live in `skills/caveman/`, `agents/caveman/`, `commands/caveman/`, etc.
+Vendored from `JuliusBrussee/caveman`, pinned to a release tag. The file lists mirror upstream's own installer (`installer/install.js`, `installer/lib/opencode-agent.js`): `OPENCODE_SKILL_DIRS`, `OPENCODE_AGENT_FILES`, `OPENCODE_COMMAND_FILES`, and the opencode plugin layout (the two `.cjs` helpers are renamed copies of `src/hooks/caveman-config.js` / `caveman-parse.js`).
 
 Shared skills, agents, and commands reach both harnesses through the per-item symlinks created by `scripts/link.sh`.
 
 To re-sync (hub level):
 
-1. Clone upstream into a scratch dir: `git clone https://github.com/JuliusBrussee/caveman /tmp/caveman-src`
-2. Diff each vendored area against upstream equivalents (`skills/`, `agents/`, `commands/`, plugin sources) and inspect local-only changes before overwriting anything.
-3. Re-copy changed files, preserving any local modifications you want to keep.
-4. Run `~/.agents/scripts/link.sh` to refresh harness symlinks.
-5. Restart opencode and Claude Code.
-6. Update the version note in this file's table if upstream marked a release.
+1. Bump the `#ref` in the command below to the wanted release tag, then run:
 
-Note: `scripts/sync-upstream.sh` cannot drive this dependency yet: upstream `agents/` and `skills/` mix vendored assets with build tooling and extra skills whose link names would collide, hub agents carry a local `mode: subagent` adaptation, and the vendored opencode plugin is a subset of `src/plugins/opencode/` with two hub-local `.cjs` files. None of that is expressible with the current `--raw` mappings; re-work a script-side item filter before switching this flow over.
+   ```
+   scripts/sync-upstream.sh caveman JuliusBrussee/caveman#v<version> \
+     skills=caveman,cavecrew,caveman-commit,caveman-compress,caveman-help,caveman-review,caveman-stats,megacave,ultracave \
+     agents=cavecrew-builder,cavecrew-investigator,cavecrew-reviewer \
+     --raw src/plugins/opencode/commands:commands/caveman \
+     --raw src/plugins/opencode/package.json:harnesses/opencode/plugins/caveman/package.json \
+     --raw src/plugins/opencode/plugin.js:harnesses/opencode/plugins/caveman/plugin.js \
+     --raw src/plugins/opencode/server.js:harnesses/opencode/plugins/caveman/server.js \
+     --raw src/hooks/caveman-config.js:harnesses/opencode/plugins/caveman/caveman-config.cjs \
+     --raw src/hooks/caveman-parse.js:harnesses/opencode/plugins/caveman/caveman-parse.cjs
+   ```
+
+   Explicit plugin file mappings, so upstream moves surface as `upstream path not found` errors rather than silent drift.
+2. Re-apply the hub-local agent adaptation. Upstream adds `mode: subagent` at opencode install time; the hub needs it in the vendored copy, one shared by both harnesses:
+
+   ```
+   for f in agents/caveman/cavecrew-*.md; do
+     grep -q '^mode: subagent' "$f" || \
+       perl -pi -e 'if (/^(name: .*)$/) { $_ = "$1\nmode: subagent\n" unless $c++ }' "$f"
+   done
+   ```
+
+   This mirrors upstream's `transformOpencodeAgentFrontmatter`, which also strips `tools:` YAML arrays and provider-less `model:` values (opencode fails to resolve `model: haiku`; upstream 4.0.1 sets it on cavecrew-investigator and cavecrew-reviewer). Apply the full transform after the sync's `mode: subagent` step:
+
+   ```
+   for f in agents/caveman/cavecrew-*.md; do
+     perl -ni -e 'print unless /^(tools[ \t]*: \[|model[ \t]*: (?!.*\/).*)$/' "$f"
+   done
+   ```
+3. Review `git status` / `git diff` before committing. The script re-runs `scripts/link.sh`; restart opencode and Claude Code.
+4. Update the version in this file's table (the release tag from step 1).
+
+Note the plugin has known upstream issues referenced in `harnesses/opencode/plugins/caveman/plugin.js` (issues 418, 421); check whether fixes landed upstream before re-copying plugin files.
 
 ### opencode
 
-Only the plugin differs from the hub: `harnesses/opencode/plugins/caveman/` is a real directory referenced as `./plugins/caveman` in `opencode.json`. It is part of the same re-sync flow above; no separate update step.
-
-Note the plugin has known upstream issues referenced in `harnesses/opencode/plugins/caveman/plugin.js` (issues 418, 421); check whether fixes landed upstream before re-copying plugin files.
+The plugin dir `harnesses/opencode/plugins/caveman/` is a real directory referenced as `./plugins/caveman` in `opencode.json`; it is synced via the `--raw` mappings above, no separate update step.
 
 ### Claude Code
 
@@ -70,8 +95,9 @@ Shared skills reach both harnesses through the per-item symlinks created by `scr
 
 To update (hub level):
 
-1. `scripts/sync-upstream.sh mattpocock mattpocock/skills --via skills skills`
-   The `--via skills` mode fetches and validates through the official `npx skills` CLI (`npx skills add --skill '*' --copy` into a temp dir) instead of a plain clone. It requires Node >= 22.20.
+1. Bump the `#ref` in the command below to the wanted release tag, then run:
+   `scripts/sync-upstream.sh mattpocock mattpocock/skills#v<version> --via skills skills`
+   The `--via skills` mode fetches and validates through the official `npx skills` CLI (`npx skills add --skill '*' --copy` into a temp dir) instead of a plain clone. It requires Node >= 22.20. With `#ref`, the source is cloned at the tag first, then `npx skills` reads the local clone, so the fetch is reproducible.
 2. Review `git status` / `git diff` before committing. The `rsync --delete` also removes skills deleted upstream.
 3. The script re-runs `scripts/link.sh`; restart opencode and Claude Code.
 4. Update the version in this file's table (latest release tag).
