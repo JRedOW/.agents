@@ -5,7 +5,8 @@
 #
 # Hub assets may be grouped one level deep (agents/caveman/x.md,
 # skills/caveman/<name>/SKILL.md). Harnesses stay flat: one symlink per
-# leaf item. Folders starting with "." are ignored everywhere.
+# leaf item. Hierarchical .ignore files (gitignore-style, with an optional
+# [harness] tag) decide what is excluded.
 
 set -euo pipefail
 
@@ -96,20 +97,247 @@ link() {
   fi
 }
 
+# --- .ignore matching ---------------------------------------------------------
+# Hierarchical, gitignore-style exclusion for leaf items. The hub root
+# .ignore covers the whole hub; any .ignore under agents/commands/skills
+# covers its own directory and below. Rules apply in file order and the
+# last match wins, so ! re-includes. Unlike git, ! can also re-include
+# paths under an excluded directory. Syntax: # comments, blank lines, *,
+# ?, **, trailing / (dirs only), leading or inner / (anchored to the
+# file's directory), ! negation, and an optional leading [harness,...]
+# tag (claude, opencode) scoping the rule to those harnesses.
+
+# regex_escape_char <char>: print <char> as a literal in a POSIX ERE
+regex_escape_char() {
+  case "$1" in
+    "\\")
+      printf '\\\\'
+      ;;
+    .|'^'|'$'|'+'|'('|')'|'{'|'}'|'|'|'['|']')
+      printf '\\%s' "$1"
+      ;;
+    *)
+      printf '%s' "$1"
+      ;;
+  esac
+}
+
+# glob_to_ere <glob>: print the glob as a POSIX ERE (no anchors here).
+# ** spans path components only in the gitignore positions: leading "**/",
+# inner "/**/", trailing "/**"; elsewhere it degrades to ".*".
+glob_to_ere() {
+  local glob="$1" ere="" i=0 n=${#1} c
+  while [ "$i" -lt "$n" ]; do
+    c="${glob:i:1}"
+    if [ "$c" = '*' ]; then
+      if [ "${glob:i:2}" = '**' ]; then
+        if [ "$i" -eq 0 ] && [ "${glob:i:3}" = '**/' ]; then
+          ere+='(.*/)?'
+          i=$((i+3))
+          continue
+        fi
+        ere+='.*'
+        i=$((i+2))
+        continue
+      fi
+      ere+='[^/]*'
+    elif [ "$c" = '?' ]; then
+      ere+='[^/]'
+    elif [ "$c" = '/' ] && [ "${glob:i:4}" = '/**/' ]; then
+      ere+='(/.*)?/'
+      i=$((i+4))
+      continue
+    elif [ "$c" = '/' ] && [ "${glob:i:3}" = '/**' ] && [ $((i+3)) -eq "$n" ]; then
+      ere+='/.*'
+      i=$((i+3))
+      continue
+    else
+      ere+="$(regex_escape_char "$c")"
+    fi
+    i=$((i+1))
+  done
+  printf '%s' "$ere"
+}
+
+# parse_rule <base> <pattern>: append one rule to the RULE_* arrays.
+# base is the directory of the .ignore file, "" for the hub root.
+parse_rule() {
+  local base="$1" pat="$2" negate=0 dironly=0 anchored=0 ere
+  if [ -z "$pat" ]; then
+    return 0
+  fi
+  if [ "${pat#!}" != "$pat" ]; then
+    negate=1
+    pat="${pat#!}"
+  fi
+  if [ "${pat%/}" != "$pat" ]; then
+    dironly=1
+    pat="${pat%/}"
+  fi
+  if [ -z "$pat" ]; then
+    return 0
+  fi
+  if [ "${pat#/}" != "$pat" ]; then
+    anchored=1
+    pat="${pat#/}"
+  fi
+  case "$pat" in
+    */*) anchored=1 ;;
+  esac
+  if [ -z "$pat" ]; then
+    return 0
+  fi
+  # anchored ERE so matching is whole-path / whole-component, never substring
+  ere="^($(glob_to_ere "$pat"))\$"
+  RULE_BASE+=("$base")
+  RULE_ERE+=("$ere")
+  RULE_NEGATE+=("$negate")
+  RULE_DIRONLY+=("$dironly")
+  RULE_ANCHORED+=("$anchored")
+}
+
+# load_ignore_file <base> <harness> <file>: parse one .ignore into the
+# RULE_* arrays. Rules tagged for other harnesses are dropped; unknown
+# harness names in a tag warn and skip the rule.
+load_ignore_file() {
+  local base="$1" harness="$2" file="$3"
+  local line tag name ok ln=0 re
+  local -a tag_names
+  re='^\[([A-Za-z0-9._-]+(,[A-Za-z0-9._-]+)*)\][[:space:]]*(.*)$'
+  while IFS= read -r line; do
+    ln=$((ln+1))
+    line="${line%$'\r'}"
+    case "$line" in
+      ''|'#'*) continue ;;
+    esac
+    if [[ "$line" =~ $re ]]; then
+      tag="${BASH_REMATCH[1]}"
+      line="${BASH_REMATCH[3]}"
+      ok=1
+      IFS=',' read -r -a tag_names <<< "$tag"
+      for name in "${tag_names[@]}"; do
+        case " ${HARNESSES[*]} " in
+          *" $name "*) ;;
+          *)
+            echo "WARN    $file:$ln unknown harness '$name' in tag, rule skipped" >&2
+            ok=0
+            ;;
+        esac
+      done
+      if [ "$ok" -ne 1 ]; then
+        continue
+      fi
+      case " ${tag_names[*]} " in
+        *" $harness "*) ;;
+        *) continue ;;
+      esac
+    fi
+    parse_rule "$base" "$line"
+  done < "$file"
+}
+
+# load_rules <harness>: read the hub root .ignore plus every .ignore under
+# the shared asset dirs. Root loads first; find | sort keeps each directory
+# ahead of its subdirectories so deeper rules override shallower ones.
+load_rules() {
+  local harness="$1" t f
+  RULE_BASE=()
+  RULE_ERE=()
+  RULE_NEGATE=()
+  RULE_DIRONLY=()
+  RULE_ANCHORED=()
+  if [ -f "$HUB/.ignore" ]; then
+    load_ignore_file "" "$harness" "$HUB/.ignore"
+  fi
+  for t in "${TYPES[@]}"; do
+    [ -d "$HUB/$t" ] || continue
+    while IFS= read -r f; do
+      load_ignore_file "${f%/.ignore}" "$harness" "$HUB/$f"
+    done < <(cd "$HUB" && find "$t" -name .ignore -type f | sort)
+  done
+}
+
+# rule_matches <index> <rel-path>: 0 when rule idx matches the path or one
+# of its ancestor dirs. rel-path is hub-root relative.
+rule_matches() {
+  local idx="$1" path="$2"
+  local base="${RULE_BASE[$idx]}" ere="${RULE_ERE[$idx]}"
+  local dironly="${RULE_DIRONLY[$idx]}" anchored="${RULE_ANCHORED[$idx]}"
+  local rel="$path" p comp
+  if [ -n "$base" ]; then
+    case "$path" in
+      "$base"/?*) rel="${path#"$base"/}" ;;
+      *) return 1 ;;
+    esac
+  fi
+  p="$rel"
+  if [ "$anchored" -eq 1 ]; then
+    while [ -n "$p" ]; do
+      # a dir-only rule may match an ancestor dir, never the leaf file
+      if [ "$dironly" -eq 0 ] || [ "$p" != "$rel" ]; then
+        if [[ "$p" =~ $ere ]]; then
+          return 0
+        fi
+      fi
+      case "$p" in
+        */*) p="${p%/*}" ;;
+        *) p="" ;;
+      esac
+    done
+    return 1
+  fi
+  while [ -n "$p" ]; do
+    comp="${p%%/*}"
+    case "$p" in
+      */*)
+        if [[ "$comp" =~ $ere ]]; then
+          return 0
+        fi
+        p="${p#*/}"
+        ;;
+      *)
+        if [ "$dironly" -eq 0 ] && [[ "$comp" =~ $ere ]]; then
+          return 0
+        fi
+        p=""
+        ;;
+    esac
+  done
+  return 1
+}
+
+# is_ignored <rel-path>: exit 0 when the path must not be linked
+is_ignored() {
+  local path="$1" ignored=0 i
+  if [ "${#RULE_ERE[@]}" -gt 0 ]; then
+    for i in "${!RULE_ERE[@]}"; do
+      if rule_matches "$i" "$path"; then
+        if [ "${RULE_NEGATE[$i]}" -eq 1 ]; then
+          ignored=0
+        else
+          ignored=1
+        fi
+      fi
+    done
+  fi
+  if [ "$ignored" -eq 1 ]; then
+    return 0
+  fi
+  return 1
+}
+
 # Leaf items: .md files for agents/commands, dirs holding SKILL.md for skills.
-# Skips anything under a dot-folder or dotfile at any depth. Paths are printed
-# relative to $HUB: "-not -path '*/.*'" only works on relative paths because
-# $HUB itself (e.g. /Users/joseph/.agents) contains a dot component.
+# Exclusions are decided by is_ignored against the loaded .ignore rules.
 find_leaves() {
   local type="$1"
   case "$type" in
     skills)
       (cd "$HUB" && find "$type" -mindepth 2 -maxdepth 3 \
-        -not -path '*/.*' -name 'SKILL.md' -type f) | sort
+        -name 'SKILL.md' -type f) | sort
       ;;
     *)
       (cd "$HUB" && find "$type" -mindepth 1 -maxdepth 2 \
-        -not -path '*/.*' -name '*.md' -type f) | sort
+        -name '*.md' -type f) | sort
       ;;
   esac
 }
@@ -121,7 +349,7 @@ sync_assets() {
   [ -d "$hub_dir" ] || return 0
   mkdir -p "$out_dir"
 
-  local seen src name leaf
+  local seen src name leaf target
   seen="$(mktemp)"
   while IFS= read -r src; do
     case "$type" in
@@ -132,6 +360,19 @@ sync_assets() {
         name="$(basename "$src")"
         leaf="$src" ;;
     esac
+    if is_ignored "$src"; then
+      # only prune links we own (relative targets into the hub)
+      if [ -L "$out_dir/$name" ]; then
+        target="$(readlink "$out_dir/$name")"
+        case "$target" in
+          ../*)
+            rm "$out_dir/$name"
+            echo "pruned  $out_dir/$name (ignored)"
+            ;;
+        esac
+      fi
+      continue
+    fi
     if grep -qx "$name" "$seen"; then
       echo "ERROR   duplicate item name '$name' under $hub_dir" >&2
       rm -f "$seen"
@@ -172,6 +413,8 @@ ext_link_path() {
 }
 
 for harness in "${SELECTED[@]}"; do
+  load_rules "$harness"
+
   if [ "$LINKUP" -ne 1 ]; then
     # one harness-level symlink per selected harness
     link "$(ext_link_path "$harness")" "$HUB/harnesses/$harness"

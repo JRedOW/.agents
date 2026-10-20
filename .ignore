@@ -1,0 +1,13 @@
+# Exclusions for scripts/link.sh, applied hierarchically: this file governs
+# the whole hub, and any .ignore in a subdirectory governs that directory
+# and below. Syntax is gitignore-style; rules apply in order and the last
+# match wins, so ! re-includes. Unlike git, ! can also re-include paths
+# under an excluded directory.
+#
+#   scratch/         directory named scratch anywhere below this file
+#   drafts/*.md      anchored here (the pattern contains a slash)
+#   !drafts/keep.md  re-include one path
+#   [claude] tmp/    scope a rule to one harness: claude or opencode
+#   [claude,opencode] tmp/   scope a rule to several harnesses
+#
+# Nothing is ignored until you add a pattern below.

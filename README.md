@@ -23,10 +23,11 @@ Personal cross-platform agent configuration: shared skills, agents, and commands
 │   ├── .gitignore                     sessions, caches, credentials, flags
 │   ├── CLAUDE.md -> ../../AGENTS.md
 │   └── {agents,commands,skills}/      real dirs, one symlink per leaf item
+├── .ignore                            link.sh exclusions (gitignore-style)
 └── scripts/link.sh                    Idempotent symlink wiring
 ```
 
-Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agents/caveman/`). Harnesses stay flat: `link.sh` creates one symlink per leaf item, so tools never see the grouping. Folders starting with `.` are ignored by `link.sh` at any depth.
+Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agents/caveman/`). Harnesses stay flat: `link.sh` creates one symlink per leaf item, so tools never see the grouping. Exclusions are controlled by hierarchical `.ignore` files with gitignore-style syntax: the root `.ignore` covers the whole hub, and a `.ignore` in any subdirectory covers that directory and below. A leading `[claude]` or `[opencode]` tag scopes a rule to one harness; untagged rules apply to all.
 
 ## How each tool finds things
 

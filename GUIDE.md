@@ -53,7 +53,7 @@ description: One sentence.
 The prompt to run. $ARGUMENTS is replaced with the user's input; $1, $2, ... for positional args.
 ```
 
-Keep frontmatter to `description` for portability. opencode extras (`agent:`, `model:`, `subtask:`) and Claude Code extras (`allowed-tools:`, `argument-hint:`, `model:`) are only safe if you accept the other tool ignoring them. Group folders change nothing for the tools: `link.sh` flattens items into each harness, so commands keep their top-level names (`/caveman`, not `/caveman/caveman`). Run `link.sh`, restart both tools. `link.sh` ignores any folder starting with `.`.
+Keep frontmatter to `description` for portability. opencode extras (`agent:`, `model:`, `subtask:`) and Claude Code extras (`allowed-tools:`, `argument-hint:`, `model:`) are only safe if you accept the other tool ignoring them. Group folders change nothing for the tools: `link.sh` flattens items into each harness, so commands keep their top-level names (`/caveman`, not `/caveman/caveman`). Run `link.sh`, restart both tools. `link.sh` excludes paths via hierarchical `.ignore` files (gitignore-style syntax; a leading `[claude]` or `[opencode]` tag scopes a rule to one harness).
 
 ## Global instructions (AGENTS.md)
 
