@@ -3,10 +3,11 @@
 # Idempotent: correct links are kept, wrong links are replaced.
 # Refuses to touch real files or dirs. Prunes stale links into this repo.
 #
-# Hub assets may be grouped one level deep (agents/caveman/x.md,
-# skills/caveman/<name>/SKILL.md). Harnesses stay flat: one symlink per
-# leaf item. Hierarchical .ignore files (gitignore-style, with an optional
-# [harness] tag) decide what is excluded.
+# Hub assets may be grouped at any depth (agents/caveman/x.md,
+# skills/caveman/<name>/SKILL.md, skills/suite/<group>/<name>/SKILL.md).
+# Harnesses stay flat: one symlink per leaf item. Hierarchical .ignore
+# files (gitignore-style, with an optional [harness] tag) decide what is
+# excluded.
 
 set -euo pipefail
 
@@ -328,16 +329,20 @@ is_ignored() {
 }
 
 # Leaf items: .md files for agents/commands, dirs holding SKILL.md for skills.
-# Exclusions are decided by is_ignored against the loaded .ignore rules.
+# Leaves may sit at any depth: skills/NAME/<name>/SKILL.md,
+# skills/SOURCE/<group>/<name>/SKILL.md, agents/SOURCE/file.md,
+# agents/SOURCE/<name>/nested.md. Deeper unnamed helper files inside item dirs
+# are indexables false positives; use .ignore rules to opt them out. Exclusions
+# are decided by is_ignored against the loaded .ignore rules.
 find_leaves() {
   local type="$1"
   case "$type" in
     skills)
-      (cd "$HUB" && find "$type" -mindepth 2 -maxdepth 3 \
+      (cd "$HUB" && find "$type" -mindepth 2 \
         -name 'SKILL.md' -type f) | sort
       ;;
     *)
-      (cd "$HUB" && find "$type" -mindepth 1 -maxdepth 2 \
+      (cd "$HUB" && find "$type" -mindepth 1 \
         -name '*.md' -type f) | sort
       ;;
   esac

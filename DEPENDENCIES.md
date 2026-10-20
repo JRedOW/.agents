@@ -39,12 +39,16 @@ Vendored from `JuliusBrussee/caveman`. Files live in `skills/caveman/`, `agents/
 
 Shared skills, agents, and commands reach both harnesses through the per-item symlinks created by `scripts/link.sh`.
 
-To re-sync (hub level, run `scripts/sync-upstream.sh`):
+To re-sync (hub level):
 
-1. `scripts/sync-upstream.sh caveman JuliusBrussee/caveman --raw plugins/caveman:harnesses/opencode/plugins/caveman`
-2. Review `git status` / `git diff` before committing. Note the script syncs full upstream dirs with `rsync --delete`, so it can add items beyond the current vendored subset (and its duplicate-name check warns about harness link collisions). Opt unwanted items out of linking with `.ignore` rules, or delete them from the vendored dirs before committing.
-3. Restart opencode and Claude Code.
-4. Update the version note in this file's table if upstream marked a release.
+1. Clone upstream into a scratch dir: `git clone https://github.com/JuliusBrussee/caveman /tmp/caveman-src`
+2. Diff each vendored area against upstream equivalents (`skills/`, `agents/`, `commands/`, plugin sources) and inspect local-only changes before overwriting anything.
+3. Re-copy changed files, preserving any local modifications you want to keep.
+4. Run `~/.agents/scripts/link.sh` to refresh harness symlinks.
+5. Restart opencode and Claude Code.
+6. Update the version note in this file's table if upstream marked a release.
+
+Note: `scripts/sync-upstream.sh` cannot drive this dependency yet: upstream `agents/` and `skills/` mix vendored assets with build tooling and extra skills whose link names would collide, hub agents carry a local `mode: subagent` adaptation, and the vendored opencode plugin is a subset of `src/plugins/opencode/` with two hub-local `.cjs` files. None of that is expressible with the current `--raw` mappings; re-work a script-side item filter before switching this flow over.
 
 ### opencode
 

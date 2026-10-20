@@ -104,6 +104,25 @@ printf 'scratch/\n' > "$H2/.ignore"
 run "$H2" claude
 assert_link "new .ignore prunes existing link" "$H2" claude   skills scratch           absent
 
+# --- hub 3: leaves at any nesting depth ----------------------------------------
+
+H3="$TMP/hub3"
+mkdir -p "$H3/scripts" "$H3/harnesses/claude" "$H3/harnesses/opencode" "$H3/agents/group/one"
+cp "$ROOT/scripts/link.sh" "$H3/scripts/link.sh"
+make_skill "$H3/skills/suite/eng/tdd"
+make_skill "$H3/skills/suite/plat/grill"
+printf 'x\n' > "$H3/agents/group/one/nested.md"
+printf 'x\n' > "$H3/agents/group/two.md"
+printf 'scratch/\n' > "$H3/.ignore"
+make_skill "$H3/skills/suite/eng/scratch"
+
+run "$H3" claude
+assert_link "deep-nested skill links"          "$H3" claude   skills tdd             linked
+assert_link "second deep-nested skill links"   "$H3" claude   skills grill           linked
+assert_link "deep-nested agent file links"     "$H3" claude   agents nested.md       linked
+assert_link "shallow agent file links"         "$H3" claude   agents two.md          linked
+assert_link "deep .ignore rule prunes skill"   "$H3" claude   skills scratch         absent
+
 if [ "$fail" -eq 0 ]; then
   echo "all tests passed"
 fi

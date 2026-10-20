@@ -59,6 +59,7 @@ new_upstream() {
   printf 'command\n' >"$up/commands/x.md"
   mkdir -p "$up/extra/plugin"
   printf 'entry\n' >"$up/extra/plugin/index.js"
+  printf 'note\n' >"$up/extra/notes.md"
   git init -q -b main "$up"
   git -C "$up" add -A
   git -C "$up" -c user.email=t@localhost -c user.name=test commit -qm init
@@ -109,9 +110,11 @@ H2="$TMP/hub-raw"
 new_hub "$H2"
 mkdir -p "$H2/harnesses/opencode/plugins/testplug"
 printf 'old\n' >"$H2/harnesses/opencode/plugins/testplug/old.js"
-sync "$H2" testdep "$UP_URL" --raw extra/plugin:harnesses/opencode/plugins/testplug --no-link skills >/dev/null
+sync "$H2" testdep "$UP_URL" --raw extra/plugin:harnesses/opencode/plugins/testplug \
+  --raw extra/notes.md:harnesses/opencode/plugins/testplug --no-link skills >/dev/null
 assert_dir "--raw syncs upstream dir" "$H2/harnesses/opencode/plugins/testplug"
 [ -f "$H2/harnesses/opencode/plugins/testplug/index.js" ] && pass "--raw syncs plugin file" || die "plugin file missing"
+[ -f "$H2/harnesses/opencode/plugins/testplug/notes.md" ] && pass "--raw copies upstream file" || die "notes file missing"
 assert_gone "--raw --delete prunes destination-only file" "$H2/harnesses/opencode/plugins/testplug/old.js"
 
 # 5. full run without --no-link: link.sh refreshes sandbox-home harness links.

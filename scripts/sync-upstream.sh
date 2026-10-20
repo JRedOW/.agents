@@ -11,9 +11,9 @@
 #   --via skills   fetch skill-pack repos through `npx skills` instead of git
 #                  clone (validates SKILL.md frontmatter and flattens grouped
 #                  upstream layouts into one skill per dir)
-#   --raw src:dst  extra mapping: copy contents of OWNER/REPO/src into dst,
-#                  relative to the temp fetch root and the hub root; dst is
-#                  rsynced with --delete (repeatable)
+#   --raw src:dst  extra mapping, dst is always a hub directory (repeatable):
+#                  src dir  -> contents copied into dst (dst extras deleted)
+#                  src file -> file copied into dst
 #   --no-link      skip scripts/link.sh after syncing
 #
 # NAME must not contain slashes. If OWNER/REPO is a full git URL it is cloned
@@ -21,8 +21,7 @@
 #
 # examples:
 #   scripts/sync-upstream.sh mattpocock mattpocock/skills --via skills skills
-#   scripts/sync-upstream.sh caveman JuliusBrussee/caveman \
-#     --raw plugins/caveman:harnesses/opencode/plugins/caveman
+#   scripts/sync-upstream.sh suite LessiaBear/example --raw skills/x:skills/suite/x
 
 set -euo pipefail
 
@@ -128,7 +127,11 @@ for raw in "${RAW_MAPPINGS[@]:-}"; do
   esac
   [ -e "$SRC/$src" ] || { echo "error: upstream path not found: $src" >&2; exit 1; }
   mkdir -p "$HUB/$dst"
-  rsync -a --delete "$SRC/$src/" "$HUB/$dst/"
+  if [ -f "$SRC/$src" ]; then
+    rsync -a "$SRC/$src" "$HUB/$dst/"
+  else
+    rsync -a --delete "$SRC/$src/" "$HUB/$dst/"
+  fi
   echo "synced $dst/ (raw: $src)"
 done
 
