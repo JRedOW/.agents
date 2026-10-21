@@ -2,6 +2,7 @@
   "theme": "dark",
   "model": "opus",
   "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}},
+  "permissions": {"defaultMode": "plan"},
   "extraKnownMarketplaces": {
     "caveman": {
       "source": {"source": "github", "repo": "JuliusBrussee/caveman", "ref": "v4.0.1"}
