@@ -465,6 +465,16 @@ ext_link_path() {
 for harness in "${SELECTED[@]}"; do
   load_rules "$harness"
 
+  if [ "$harness" = "claude" ]; then
+    # Restore live settings from the tracked template (settings.json is
+    # gitignored: Orca injects machine-local hooks into it via ~/.claude).
+    local_settings="$HUB/harnesses/claude/settings.json"
+    if [ ! -e "$local_settings" ] && [ -f "$HUB/harnesses/claude/settings.template.json" ]; then
+      cp "$HUB/harnesses/claude/settings.template.json" "$local_settings"
+      echo "copied  $local_settings <- settings.template.json"
+    fi
+  fi
+
   if [ "$LINKUP" -ne 1 ]; then
     # one harness-level symlink per selected harness
     link "$(ext_link_path "$harness")" "$HUB/harnesses/$harness"

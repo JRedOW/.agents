@@ -11,3 +11,18 @@ shell-snapshots/
 
 # Shipped by Claude Code itself; churns with app updates
 skills/.system/
+
+# Synced/signed policy and settings; regenerated from Anthropic
+policy-limits.json*
+remote-settings.json*
+
+# Runtime-downloaded marketplace and synced plugin/skill state
+plugins/
+skills/synced/
+
+# Live settings: Orca injects machine-local hooks into this exact path
+# (~/.claude symlinks here). Restore from settings.template.json.
+settings.json
+
+# Per-session temp state
+session-env/
