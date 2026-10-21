@@ -26,3 +26,15 @@ settings.json
 
 # Per-session temp state
 session-env/
+
+# Prompt history and per-project session data
+history.jsonl
+projects/
+
+# MCP auth prompt cache
+mcp-needs-auth-cache.json
+
+# Statusline and mode files installed by plugins (caveman, ponytail) at startup
+hooks/caveman-statusline.sh
+ponytail-statusline.sh
+ponytail-modes/

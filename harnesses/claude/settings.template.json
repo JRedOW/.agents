@@ -1,3 +1,21 @@
 {
-  "theme": "dark"
+  "theme": "dark",
+  "model": "opus",
+  "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}},
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {"source": "github", "repo": "JuliusBrussee/caveman", "ref": "v4.0.1"}
+    },
+    "ponytail": {
+      "source": {"source": "github", "repo": "DietrichGebert/ponytail", "ref": "v5.3.2"}
+    },
+    "hub-mcp": {
+      "source": {"source": "directory", "path": "~/.agents/harnesses/claude/marketplace"}
+    }
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true,
+    "ponytail@ponytail": true,
+    "context7@hub-mcp": true
+  }
 }

@@ -472,6 +472,8 @@ for harness in "${SELECTED[@]}"; do
     if [ ! -e "$local_settings" ] && [ -f "$HUB/harnesses/claude/settings.template.json" ]; then
       cp "$HUB/harnesses/claude/settings.template.json" "$local_settings"
       echo "copied  $local_settings <- settings.template.json"
+    elif [ -e "$local_settings" ]; then
+      echo "skipped $local_settings exists; template changes not applied"
     fi
   fi
 

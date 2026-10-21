@@ -1,1 +1,0 @@
-../../../commands/caveman/ultracave.md

@@ -1,1 +1,0 @@
-../../../commands/caveman/caveman-help.md

@@ -29,7 +29,12 @@ To update:
 
 ### Claude Code
 
-Not installed yet.
+Installed as the `ponytail` plugin from the GitHub-declared marketplace in `harnesses/claude/settings.template.json` (`extraKnownMarketplaces.ponytail`, pinned via ref; enabled via `enabledPlugins`).
+
+To update:
+
+1. Bump the `ref` in `harnesses/claude/settings.template.json` to the wanted release tag, and apply the same bump to the live `settings.json`.
+2. Restart Claude Code; the plugin pulls the new version at startup.
 
 ---
 
@@ -83,7 +88,14 @@ The plugin dir `harnesses/opencode/plugins/caveman/` is a real directory referen
 
 ### Claude Code
 
-Not installed yet.
+Installed as the `caveman` plugin from the GitHub-declared marketplace in `harnesses/claude/settings.template.json` (`extraKnownMarketplaces.caveman`, pinned to ref; enabled via `enabledPlugins`). 
+
+The plugin supplies the full skill, agent, and command suite, so the shared hub links are pruned on the Claude side via `[claude]` rules in `skills/caveman/.ignore`, `commands/caveman/.ignore`, and `agents/caveman/.ignore`; opencode keeps its symlinks.
+
+To update:
+
+1. Bump the `ref` in `harnesses/claude/settings.template.json` to the wanted release tag, and apply the same bump to the live `settings.json`.
+2. Restart Claude Code; the plugin pulls the new version at startup.
 
 ---
 
@@ -146,4 +158,6 @@ To update: nothing to do. The server updates upstream. Keep config in `opencode.
 
 ### Claude Code
 
-Not installed yet.
+Shipped as a hub-local plugin: `harnesses/claude/marketplace/` is a tracked directory marketplace (`hub-mcp`) holding the `context7` plugin with its `.mcp.json` (remote server at `https://mcp.context7.com/mcp`). Registered in `harnesses/claude/settings.template.json` under `extraKnownMarketplaces.hub-mcp` and `enabledPlugins`.
+
+To update: nothing to do. The server updates upstream. Edits to the hub plugin files load at restart or via `/reload-plugins`; manage the server via `/mcp`. The directory source `path` uses `~`, which Claude Code expands when it re-registers the marketplace at startup, so the tracked template stays username-portable; if the hub repo moves to a different directory (not just a different `$HOME`), update `extraKnownMarketplaces.hub-mcp.source.path` in both the template and the live `settings.json`.
