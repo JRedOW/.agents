@@ -38,3 +38,16 @@ mcp-needs-auth-cache.json
 hooks/caveman-statusline.sh
 ponytail-statusline.sh
 ponytail-modes/
+
+# Daemon runtime state on this machine
+daemon/
+daemon.lock
+daemon.log
+daemon.status.json
+jobs/
+
+# Generated plan files
+plans/
+
+# File history snapshots
+file-history/
