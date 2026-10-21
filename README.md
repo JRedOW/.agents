@@ -9,9 +9,9 @@ Personal cross-platform agent configuration: shared skills, agents, and commands
 ├── AGENTS.md                          Shared global instructions (opencode AGENTS.md, Claude CLAUDE.md)
 ├── DEPENDENCIES.md                    Third-party dependency inventory + update guides
 ├── HARNESSES.md                       Installed harness versions + update guides
-├── skills/<group>/<name>/SKILL.md     Shared skills (Agent Skills spec), grouped one level deep
-├── agents/[<group>/]<name>.md         Shared subagents (group folder optional)
-├── commands/[<group>/]<name>.md       Shared slash commands (group folder optional)
+├── skills/[<group>]/<name>/SKILL.md   Shared skills (Agent Skills spec), grouped one level deep
+├── agents/[<group>]/<name>.md         Shared subagents (group folder optional)
+├── commands/[<group>]/<name>.md       Shared slash commands (group folder optional)
 ├── harnesses/opencode/                opencode-specific config (symlinked as ~/.config/opencode)
 │   ├── opencode.json
 │   ├── plugins/
@@ -39,9 +39,9 @@ Hub assets may be grouped into folders one level deep (`skills/caveman/`, `agent
 | Context  | `harnesses/opencode/AGENTS.md` -> `../../AGENTS.md`   | `harnesses/claude/CLAUDE.md` -> `../../AGENTS.md` |
 | Config   | `~/.config/opencode` -> `harnesses/opencode/`         | `~/.claude` -> `harnesses/claude/` |
 
-Never symlink a whole asset directory (`agents`, `commands`, `skills`) into a harness: nested hub groups would leak through. Claude Code namespaces commands inside subdirectories (`/group/cmd`), and opencode's scanners only match one level deep. `skills/` must also be a real directory, because Claude Code writes `.system/` files into it. `link.sh` keeps every harness flat with one symlink per leaf item.
+Never symlink a whole asset directory (`agents`, `commands`, `skills`) into a harness: nested hub groups would leak through. Claude Code namespaces commands inside subdirectories (`/group/cmd`), and opencode's `~/.config/opencode/skill(s)/*` scanner matches only one level deep, so a group link would hide the `SKILL.md` files below it. `skills/` must also be a real directory, because Claude Code writes `.system/` files into it. `link.sh` keeps every harness flat with one symlink per leaf item.
 
-`link.sh` is required, not optional: once hub skills are grouped (`skills/<group>/<name>/SKILL.md`), no tool discovers them natively (native globs like `~/.agents/skills/*/SKILL.md` and `~/.config/opencode/skills/*/SKILL.md` only match one level). The per-item harness links are the only path that works for both tools.
+Discovery of grouped hub skills (`skills/<group>/<name>/SKILL.md`) differs per tool. opencode deep-scans `~/.agents/skills/**` as external skills, so it finds grouped hub skills natively even without links; that scan does not read hub `.ignore` rules, so excluded items (`megacave`, via `skills/caveman/.ignore`) still load in opencode. Claude Code has no equivalent hub scan, so the per-item `~/.claude/skills/` links remain its only hub discovery path. The links stay for both harnesses: they are where `.ignore` actually filters.
 
 ## Setup on a new machine
 
