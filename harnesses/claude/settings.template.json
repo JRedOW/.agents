@@ -2,7 +2,7 @@
   "theme": "dark",
   "model": "opus",
   "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}},
-  "permissions": {"defaultMode": "acceptEdits"},
+  "permissions": {"defaultMode": "acceptEdits", "deny": ["Bash(git commit:*)"]},
   "statusLine": {
     "type": "command",
     "command": "b=$(bash ~/.claude/ponytail-statusline.sh); ctx=$(jq -r '.context_window | (.current_usage // {}) as $u | (($u.input_tokens // 0) + ($u.cache_creation_input_tokens // 0) + ($u.cache_read_input_tokens // 0)) as $t | \"ctx \\($t/1000|floor)k/\\(.context_window_size/1000|floor)k (\\(.used_percentage // 0 | floor)%)\"'); echo \"${b:+$b }$ctx\""

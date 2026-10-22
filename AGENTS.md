@@ -34,6 +34,11 @@
 - Limit bash usage, when needed chain related commands together
   using `&&` to minimize tool calls.
 
+## Git
+
+- Never run `git commit`. When work is ready to commit, give the user the
+  commit message and let them commit it.
+
 <!-- caveman-begin -->
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

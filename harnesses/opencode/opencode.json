@@ -5,6 +5,7 @@
   "permission": {
     "*": "ask",
     "bash": {
+      "git commit *": "deny",
       "git diff *": "allow",
       "git log *": "allow",
       "git push *": "deny",
@@ -13,7 +14,6 @@
       "head *": "allow",
       "tail *": "allow"
     },
-    "mcp_for_blender*": "deny",
     "context7_query-docs": {
       "*": "allow"
     },
@@ -29,6 +29,7 @@
     "grep": {
       "*": "allow"
     },
+    "mcp_for_blender*": "deny",
     "read": {
       "*": "allow",
       "*.env": "deny",
