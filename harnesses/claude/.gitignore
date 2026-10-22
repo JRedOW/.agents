@@ -5,6 +5,7 @@ cache/
 statsig/
 todos/
 shell-snapshots/
+.last-cleanup
 
 # Secrets; never commit or deploy
 .credentials.json
