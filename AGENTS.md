@@ -16,6 +16,12 @@
 - If you encounter a blocker during design iteration, ask the user with a
   descriptive explination of the blocker before submitting the plan.
 
+## Asking questions
+
+- Ask the user questions through the harness's question tool when one
+  exists (Claude Code: `AskUserQuestion`, opencode: `question`). Use plain
+  text only when no question tool is available.
+
 ## Subagents
 
 - When working on a larger scope assignment, utilize a subagent to
