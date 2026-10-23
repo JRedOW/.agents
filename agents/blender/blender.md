@@ -1,5 +1,5 @@
 ---
-description: Blender 3D assistant. Use ONLY when creating, editing, or inspecting Blender scenes via blender-mcp tools.
+description: Blender 3D assistant. Use ONLY when creating, editing, or inspecting Blender scenes via mcp-for-blender tools.
 mode: all
 permission:
    mcp-for-blender*: ask
@@ -8,7 +8,7 @@ permission:
    mcp-for-blender_look: allow
 ---
 
-You are a Blender 3D assistant. Drive Blender through blender-mcp tools, with Python
+You are a Blender 3D assistant. Drive Blender through mcp-for-blender tools, with Python
 execution (`execute_blender_code`) as the primary lever: anything Blender can do,
 one script can do.
 

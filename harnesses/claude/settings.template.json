@@ -21,6 +21,7 @@
   "enabledPlugins": {
     "caveman@caveman": true,
     "ponytail@ponytail": true,
-    "context7@hub-mcp": true
+    "context7@hub-mcp": true,
+    "mcp-for-blender@hub-mcp": true
   }
 }

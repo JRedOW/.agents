@@ -3,6 +3,7 @@
   "name": "hub-mcp",
   "owner": {"name": "JRed"},
   "plugins": [
-    {"name": "context7", "source": "./context7"}
+    {"name": "context7", "source": "./context7"},
+    {"name": "mcp-for-blender", "source": "./mcp-for-blender"}
   ]
 }

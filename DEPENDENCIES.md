@@ -128,21 +128,26 @@ No per-harness files; covered by the hub-level `link.sh` links.
 
 ## mcp-for-blender
 
-Currently only in opencode, each harness requires a unique `BLENDER_PORT`.
+Configured in both opencode and Claude Code. Each harness requires a unique `BLENDER_PORT`, and the Blender addon panel port must match the harness in use.
 
 Local MCP server, formerly `blender-mcp`. Requires `uv`/`uvx` on PATH. Bare `uvx mcp-for-blender` starts the server directly. 
 
-Runs with `BLENDER_MCP_SAFE_MODE=1` set via the `environment` block, which enables the upstream tool-call validator.
+Runs with `BLENDER_MCP_SAFE_MODE=1` set in each harness's env block, which enables the upstream tool-call validator.
+
+To update (both harnesses):
+
+1. Check the latest release on PyPI or the upstream repository (`mcp-for-blender`).
+2. Bump the `mcp-for-blender@<version>` string in each harness file listed below.
+3. Restart both harnesses; uvx fetches the pinned version on first launch.
+4. Update the version in this file's table.
 
 ### opencode
 
-Configured as above in `opencode.json`.
+Configured in `opencode.json` under `mcp` (`environment` block). Uses the default `BLENDER_PORT` (9876).
 
-To update:
+### Claude Code
 
-1. Check the latest release on PyPI or the upstream repository (`mcp-for-blender`).
-2. Bump the `uvx mcp-for-blender@<version>` string in `opencode.json`.
-3. Restart opencode; uvx fetches the pinned version on first launch.
+Shipped as the `mcp-for-blender` plugin in the hub-local `hub-mcp` marketplace (see context7 below): `harnesses/claude/marketplace/mcp-for-blender/.mcp.json` runs `uvx mcp-for-blender@<version>` with `BLENDER_PORT=9877` in its `env` block. Enabled via `enabledPlugins` in `harnesses/claude/settings.template.json` and the live `settings.json`. Edits load at restart or via `/reload-plugins`.
 
 ---
 
