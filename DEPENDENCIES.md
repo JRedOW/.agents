@@ -147,7 +147,7 @@ Configured in `opencode.json` under `mcp` (`environment` block). Uses the defaul
 
 ### Claude Code
 
-Shipped as the `mcp-for-blender` plugin in the hub-local `hub-mcp` marketplace (see context7 below): `harnesses/claude/marketplace/mcp-for-blender/.mcp.json` runs `uvx mcp-for-blender@<version>` with `BLENDER_PORT=9877` in its `env` block. Enabled via `enabledPlugins` in `harnesses/claude/settings.template.json` and the live `settings.json`. Edits load at restart or via `/reload-plugins`.
+Shipped as the `mcp-for-blender` plugin in the hub-local `hub-mcp` marketplace (see context7 below): `harnesses/claude/marketplace/mcp-for-blender/.mcp.json` runs `uvx mcp-for-blender@<version>` with `BLENDER_PORT=9877` in its `env` block. Its `hooks/hooks.json` denies the server's tools outside the `blender` agent (needs `jq`). Enabled via `enabledPlugins` in `harnesses/claude/settings.template.json` and the live `settings.json`. Edits load at restart or via `/reload-plugins`.
 
 ---
 

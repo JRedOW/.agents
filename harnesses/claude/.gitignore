@@ -35,6 +35,9 @@ projects/
 # MCP auth prompt cache
 mcp-needs-auth-cache.json
 
+# MCP server protocol discovery cache
+state/
+
 # Statusline and mode files installed by plugins (caveman, ponytail) at startup
 hooks/caveman-statusline.sh
 ponytail-statusline.sh
