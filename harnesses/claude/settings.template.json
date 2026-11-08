@@ -20,7 +20,7 @@
       "source": {"source": "github", "repo": "JuliusBrussee/caveman", "ref": "v4.0.1"}
     },
     "ponytail": {
-      "source": {"source": "github", "repo": "DietrichGebert/ponytail", "ref": "v5.3.2"}
+      "source": {"source": "github", "repo": "DietrichGebert/ponytail", "ref": "v5.3.3"}
     },
     "hub-mcp": {
       "source": {"source": "directory", "path": "~/.agents/harnesses/claude/marketplace"}
