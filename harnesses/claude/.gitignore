@@ -55,3 +55,7 @@ plans/
 
 # File history snapshots
 file-history/
+
+# Orca agent-view setup state and its injected keybinding
+orca-agent-view.json
+keybindings.json
