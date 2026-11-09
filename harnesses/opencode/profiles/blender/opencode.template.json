@@ -18,7 +18,8 @@
         "mcp-for-blender@2.2.7"
       ],
       "environment": {
-        "BLENDER_MCP_SAFE_MODE": "1"
+        "BLENDER_MCP_SAFE_MODE": "1",
+        "BLENDER_PORT": "9877"
       },
       "enabled": true
     }

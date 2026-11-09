@@ -143,11 +143,11 @@ To update (both harnesses):
 
 ### opencode
 
-Configured in `harnesses/opencode/profiles/blender/opencode.template.json` under `mcp` (`environment` block); after a bump, delete the generated `profiles/blender/opencode.json` and rerun `link.sh`. Uses the default `BLENDER_PORT` (9876).
+Configured in `harnesses/opencode/profiles/blender/opencode.template.json` under `mcp` (`environment` block); after a bump, delete the generated `profiles/blender/opencode.json` and rerun `link.sh`. Sets `BLENDER_PORT=9877` in that block.
 
 ### Claude Code
 
-Shipped as the `mcp-for-blender` plugin in the hub-local `hub-mcp` marketplace (see context7 below): `harnesses/claude/marketplace/mcp-for-blender/.mcp.json` runs `uvx mcp-for-blender@<version>` with `BLENDER_PORT=9877` in its `env` block. Its `hooks/hooks.json` denies the server's tools outside the `blender` agent (needs `jq`). Enabled via `enabledPlugins` in `harnesses/claude/profiles/blender/settings.template.json` and that profile's live `settings.json`. Edits load at restart or via `/reload-plugins`.
+Shipped as the `mcp-for-blender` plugin in the hub-local `hub-mcp` marketplace (see context7 below): `harnesses/claude/marketplace/mcp-for-blender/.mcp.json` runs `uvx mcp-for-blender@<version>` on the default `BLENDER_PORT` (9876). Its `hooks/hooks.json` denies the server's tools outside the `blender` agent (needs `jq`). Enabled via `enabledPlugins` in `harnesses/claude/profiles/blender/settings.template.json` and that profile's live `settings.json`. Edits load at restart or via `/reload-plugins`.
 
 ---
 
