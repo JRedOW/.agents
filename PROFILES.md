@@ -4,7 +4,7 @@ Profiles are alternate harness config dirs, used by pointing `CLAUDE_CONFIG_DIR`
 
 | Profile | Harnesses | Description |
 |---|---|---|
-| blender | claude, opencode | Blender MCP plugin and the blender agent |
+| blender | claude, opencode | Blender MCP plugin, blender agent, and blender skill |
 
 - **Profile**: the name used in `<name>` tags in `.ignore` files and in the launcher names (`claude-blender`). `default` is reserved: `<default>` rules fire only in the base dir.
 - **Harnesses**: comma-separated. Valid names: `claude`, `opencode`.
