@@ -1,0 +1,26 @@
+{
+  "permission": {
+    "mcp-for-blender*": "ask",
+    "mcp-for-blender_get_addon_status": "allow",
+    "mcp-for-blender_get_scene_info": "allow",
+    "mcp-for-blender_look": "allow"
+  },
+  "agent": {
+    "blender": {
+      "mode": "all"
+    }
+  },
+  "mcp": {
+    "mcp-for-blender": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-for-blender@2.2.7"
+      ],
+      "environment": {
+        "BLENDER_MCP_SAFE_MODE": "1"
+      },
+      "enabled": true
+    }
+  }
+}

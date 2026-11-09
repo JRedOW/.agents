@@ -4,11 +4,6 @@
   "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}},
   "permissions": {
     "defaultMode": "acceptEdits",
-    "allow": [
-      "mcp__plugin_mcp-for-blender_mcp-for-blender__get_addon_status",
-      "mcp__plugin_mcp-for-blender_mcp-for-blender__get_scene_info",
-      "mcp__plugin_mcp-for-blender_mcp-for-blender__look"
-    ],
     "deny": ["Bash(git commit:*)"]
   },
   "statusLine": {
@@ -29,7 +24,6 @@
   "enabledPlugins": {
     "caveman@caveman": true,
     "ponytail@ponytail": true,
-    "context7@hub-mcp": true,
-    "mcp-for-blender@hub-mcp": true
+    "context7@hub-mcp": true
   }
 }

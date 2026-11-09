@@ -9,8 +9,10 @@
 #   !drafts/keep.md  re-include one path
 #   [claude] tmp/    scope a rule to one harness: claude or opencode
 #   [claude,opencode] tmp/   scope a rule to several harnesses
-#   <blender> tmp/   scope a rule to a profile: fires only when that
-#                    profile is selected via --profile. Tags may both
-#                    appear on one line, in either order: both must fire.
+#   <blender> tmp/   scope a rule to a profile (PROFILES.md): fires only
+#                    in that profile's dir, never in the base. Tags may
+#                    both appear on one line, in either order: both must fire.
+#   <default> tmp/   scope a rule to the base dir only; no profile fires it.
+#                    Mix with profiles: <default,blender> tmp/
 #
 # Nothing is ignored until you add a pattern below.

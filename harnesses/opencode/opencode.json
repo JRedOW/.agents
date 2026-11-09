@@ -29,7 +29,6 @@
     "grep": {
       "*": "allow"
     },
-    "mcp-for-blender*": "deny",
     "read": {
       "*": "allow",
       "*.env": "deny",
@@ -56,27 +55,11 @@
       }
     }
   },
-  "agent": {
-    "blender": {
-      "mode": "all"
-    }
-  },
   "plugin": [
     "@dietrichgebert/ponytail@5.3.3",
     "./plugins/caveman"
   ],
   "mcp": {
-    "mcp-for-blender": {
-      "type": "local",
-      "command": [
-        "uvx",
-        "mcp-for-blender@2.2.7"
-      ],
-      "environment": {
-        "BLENDER_MCP_SAFE_MODE": "1"
-      },
-      "enabled": true
-    },
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",

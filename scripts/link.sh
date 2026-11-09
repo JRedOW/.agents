@@ -8,12 +8,17 @@
 # Harnesses stay flat: one symlink per leaf item. Hierarchical .ignore
 # files (gitignore-style, with an optional [harness] tag) decide what is
 # excluded.
+#
+# Profiles (declared in PROFILES.md) each get a full config dir at
+# harnesses/<harness>/profiles/<name>/, built with that profile's <tag>
+# rules active. Point CLAUDE_CONFIG_DIR or OPENCODE_CONFIG_DIR at it
+# (scripts/profiles.sh defines launchers). The base dir never fires
+# profile rules.
 
 set -euo pipefail
 
 HUB="$(cd "$(dirname "$0")/.." && pwd)"
 HARNESSES=(claude opencode)
-PROFILES=(blender)
 TYPES=(agents commands skills)
 
 LINKUP=0
@@ -22,13 +27,13 @@ PROFILE_SELECTED=()
 
 usage() {
   cat >&2 <<EOF
-usage: scripts/link.sh [--linkup] [--harness <name>] ... [--profile <name>] ...
+usage: scripts/link.sh [--linkup] [--harness <name>] ...
 
   (no options)    wire everything: harness-level symlinks plus per-item links
   --linkup        per-item links and pruning only, skip harness-level symlinks
   --harness NAME  limit work to one harness (claude, opencode); repeatable
-  --profile NAME  activate a profile (blender) so <name>-tagged .ignore
-                  rules fire; repeatable
+
+Profile dirs from PROFILES.md are always rebuilt for the selected harnesses.
 EOF
 }
 
@@ -65,21 +70,6 @@ while [ "$#" -gt 0 ]; do
           ;;
       esac
       ;;
-    --profile)
-      shift
-      if [ "$#" -eq 0 ]; then
-        echo "error: --profile needs a name" >&2
-        usage
-        exit 1
-      fi
-      case " ${PROFILES[*]} " in
-        *" $1 "*) PROFILE_SELECTED+=("$1") ;;
-        *)
-          echo "error: unknown profile '$1' (${PROFILES[*]})" >&2
-          exit 1
-          ;;
-      esac
-      ;;
     -h|--help)
       usage
       exit 0
@@ -97,8 +87,57 @@ if [ "${ALL_REQUESTED:-0}" -eq 1 ] || [ "${#SELECTED[@]}" -eq 0 ]; then
 else
   SELECTED=($(printf '%s\n' "${SELECTED[@]}" | awk '!s[$0]++'))
 fi
-if [ "${#PROFILE_SELECTED[@]}" -gt 0 ]; then
-  PROFILE_SELECTED=($(printf '%s\n' "${PROFILE_SELECTED[@]}" | awk '!s[$0]++'))
+
+# --- PROFILES.md ---------------------------------------------------------------
+# Rows of the markdown table: | name | harness, harness | description |.
+# A missing file means no profiles. Bad rows abort before anything is touched.
+PROFILES=()
+PROFILE_HARNESSES=()
+if [ -f "$HUB/PROFILES.md" ]; then
+  ln=0
+  while IFS= read -r line || [ -n "$line" ]; do
+    ln=$((ln+1))
+    case "$line" in
+      '|'*) ;;
+      *) continue ;;
+    esac
+    IFS='|' read -r _ name hs _ <<< "$line"
+    read -r name <<< "$name" || true
+    if [ "$name" = "Profile" ] || [[ "$name" =~ ^:?-+:?$ ]]; then
+      continue
+    fi
+    if ! [[ "$name" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      echo "error: PROFILES.md:$ln bad profile name '$name'" >&2
+      exit 1
+    fi
+    if [ "$name" = "default" ]; then
+      echo "error: PROFILES.md:$ln 'default' is reserved for the base dir" >&2
+      exit 1
+    fi
+    case " ${PROFILES[*]-} " in
+      *" $name "*)
+        echo "error: PROFILES.md:$ln duplicate profile '$name'" >&2
+        exit 1
+        ;;
+    esac
+    hs="${hs//,/ }"
+    read -r -a hlist <<< "$hs" || true
+    if [ "${#hlist[@]}" -eq 0 ]; then
+      echo "error: PROFILES.md:$ln profile '$name' lists no harnesses" >&2
+      exit 1
+    fi
+    for h in "${hlist[@]}"; do
+      case " ${HARNESSES[*]} " in
+        *" $h "*) ;;
+        *)
+          echo "error: PROFILES.md:$ln unknown harness '$h' (${HARNESSES[*]})" >&2
+          exit 1
+          ;;
+      esac
+    done
+    PROFILES+=("$name")
+    PROFILE_HARNESSES+=(" ${hlist[*]} ")
+  done < "$HUB/PROFILES.md"
 fi
 
 link() {
@@ -128,10 +167,11 @@ link() {
 # paths under an excluded directory. Syntax: # comments, blank lines, *,
 # ?, **, trailing / (dirs only), leading or inner / (anchored to the
 # file's directory), ! negation, and optional leading tags scoping the
-# rule: [harness,...] (claude, opencode) and <profile,...> (blender).
-# Tags may both appear on one line in either order; both must fire for
-# the rule to apply, names inside a tag are OR. A rule with a profile
-# tag only fires when one of its profiles is selected via --profile.
+# rule: [harness,...] (claude, opencode) and <profile,...> (PROFILES.md
+# names, plus "default" for the base dir). Tags may both appear on one
+# line in either order; both must fire for the rule to apply, names
+# inside a tag are OR. A rule with a profile tag only fires while
+# building one of its profiles' dirs.
 
 # regex_escape_char <char>: print <char> as a literal in a POSIX ERE
 regex_escape_char() {
@@ -257,7 +297,7 @@ load_ignore_file() {
         esac
       else
         for name in "${tag_names[@]}"; do
-          case " ${PROFILES[*]} " in
+          case " ${PROFILES[*]-} default " in
             *" $name "*) ;;
             *)
               echo "WARN    $file:$ln2 unknown profile '$name' in tag, rule skipped" >&2
@@ -265,7 +305,8 @@ load_ignore_file() {
               ;;
           esac
         done
-        local fires=1 psel="${PROFILE_SELECTED[*]-}"
+        # the base dir builds as the reserved profile "default"
+        local fires=1 psel="${PROFILE_SELECTED[*]:-default}"
         for name in "${tag_names[@]}"; do
           case " $psel " in
             *" $name "*) fires=0 ;;
@@ -392,14 +433,22 @@ find_leaves() {
   esac
 }
 
+# up_path <rel-path>: one ".." per component, e.g. a/b/c -> ../../..
+up_path() {
+  printf '%s' "$1" | sed 's|[^/][^/]*|..|g'
+}
+
+# sync_assets <root> <type>: root is the hub-relative config dir
+# (harnesses/<harness> or harnesses/<harness>/profiles/<name>)
 sync_assets() {
-  local harness="$1" type="$2"
+  local root="$1" type="$2"
   local hub_dir="$HUB/$type"
-  local out_dir="$HUB/harnesses/$harness/$type"
+  local out_dir="$HUB/$root/$type"
   [ -d "$hub_dir" ] || return 0
   mkdir -p "$out_dir"
 
-  local seen src name leaf target
+  local seen src name leaf target ups
+  ups="$(up_path "$root/$type")"
   seen="$(mktemp)"
   while IFS= read -r src; do
     case "$type" in
@@ -429,16 +478,17 @@ sync_assets() {
       return 1
     fi
     echo "$name" >> "$seen"
-    # Link lives at $HUB/harnesses/<harness>/<type>/<name>: three levels up to $HUB.
-    link "$out_dir/$name" "../../../$leaf"
+    # Link lives at $HUB/<root>/<type>/<name>: one level up per root/type component.
+    link "$out_dir/$name" "$ups/$leaf"
   done < <(find_leaves "$type")
   rm -f "$seen"
 }
 
+# prune_stale <root>: drop dangling links into the hub under root's type dirs
 prune_stale() {
-  local harness="$1" type dir entry target
+  local root="$1" type dir entry target
   for type in "${TYPES[@]}"; do
-    dir="$HUB/harnesses/$harness/$type"
+    dir="$HUB/$root/$type"
     # Real dirs only; never descend through a symlink.
     [ -d "$dir" ] && [ ! -L "$dir" ] || continue
     while IFS= read -r entry; do
@@ -462,19 +512,140 @@ ext_link_path() {
   esac
 }
 
-for harness in "${SELECTED[@]}"; do
-  load_rules "$harness"
+# merge_json <base> <patch>: print base deep-merged with patch. Objects
+# merge per key, arrays append items not already present (order kept),
+# scalars take the patch value, and a null in the patch deletes the key.
+merge_json() {
+  jq -n --slurpfile b "$1" --slurpfile p "$2" '
+    def merge($p):
+      if ($p|type) == "object" and (type == "object" or . == null) then
+        reduce ($p|to_entries[]) as $e (. // {};
+          if $e.value == null then del(.[$e.key])
+          else .[$e.key] |= merge($e.value) end)
+      elif type == "array" and ($p|type) == "array" then
+        reduce $p[] as $x (.; if index([$x]) then . else . + [$x] end)
+      else $p end;
+    $b[0] | merge($p[0])'
+}
 
-  if [ "$harness" = "claude" ]; then
-    # Restore live settings from the tracked template (settings.json is
-    # gitignored: Orca injects machine-local hooks into it via ~/.claude).
-    local_settings="$HUB/harnesses/claude/settings.json"
-    if [ ! -e "$local_settings" ] && [ -f "$HUB/harnesses/claude/settings.template.json" ]; then
-      cp "$HUB/harnesses/claude/settings.template.json" "$local_settings"
-      echo "copied  $local_settings <- settings.template.json"
-    elif [ -e "$local_settings" ]; then
-      echo "skipped $local_settings exists; template changes not applied"
+# seed_config <live> <base> [patch]: write a missing live config from base,
+# deep-merged with patch when given. Never overwrites: live configs take
+# machine-local and hand edits (Orca injects hooks into the base
+# settings.json via ~/.claude), so they are gitignored.
+seed_config() {
+  local live="$1" base="$2" patch="${3-}" out
+  if [ -e "$live" ]; then
+    echo "skipped $live exists; template changes not applied"
+    return 0
+  fi
+  [ -f "$base" ] || return 0
+  if [ -z "$patch" ]; then
+    cp "$base" "$live"
+    echo "copied  $live <- ${base#"$HUB"/}"
+  elif out="$(merge_json "$base" "$patch")"; then
+    printf '%s\n' "$out" > "$live"
+    echo "merged  $live <- ${base#"$HUB"/} + ${patch#"$HUB"/}"
+  else
+    echo "ERROR   could not merge ${patch#"$HUB"/} (needs jq and plain JSON)" >&2
+    return 1
+  fi
+}
+
+# Base harness files a profile dir links back to. A real file at the same
+# path in the profile dir (e.g. an opencode.json seeded from a template)
+# is kept.
+profile_shared() {
+  case "$1" in
+    claude)   echo CLAUDE.md ;;
+    opencode) printf '%s\n' AGENTS.md opencode.json plugins/caveman ;;
+  esac
+}
+
+# build_root <harness> <root> [profile]: per-item links (plus pruning) for
+# one config dir, with only the given profile's <tag> rules active
+build_root() {
+  local harness="$1" root="$2" type
+  PROFILE_SELECTED=(${3+"$3"})
+  load_rules "$harness"
+  prune_stale "$root"
+  for type in "${TYPES[@]}"; do
+    sync_assets "$root" "$type"
+  done
+}
+
+build_profile() {
+  local harness="$1" name="$2"
+  local root="harnesses/$harness/profiles/$name" path base patch
+  mkdir -p "$HUB/$root"
+  # profile *.template.json files are patches deep-merged onto the base
+  case "$harness" in
+    claude)
+      patch="$HUB/$root/settings.template.json"
+      [ -f "$patch" ] || patch=""
+      seed_config "$HUB/$root/settings.json" "$HUB/harnesses/claude/settings.template.json" "$patch"
+      ;;
+    opencode)
+      # without a template, the shared links below point at the base opencode.json
+      patch="$HUB/$root/opencode.template.json"
+      if [ -f "$patch" ]; then
+        if [ -L "$HUB/$root/opencode.json" ]; then
+          rm "$HUB/$root/opencode.json"
+        fi
+        seed_config "$HUB/$root/opencode.json" "$HUB/harnesses/opencode/opencode.json" "$patch"
+      fi
+      ;;
+  esac
+  while IFS= read -r path; do
+    base="$HUB/harnesses/$harness/$path"
+    [ -e "$base" ] || [ -L "$base" ] || continue
+    if [ -e "$HUB/$root/$path" ] && [ ! -L "$HUB/$root/$path" ]; then
+      echo "kept    $HUB/$root/$path (profile override)"
+      continue
     fi
+    link "$HUB/$root/$path" "$(up_path "$(dirname "profiles/$name/$path")")/$path"
+  done < <(profile_shared "$harness")
+  build_root "$harness" "$root" "$name"
+}
+
+# prune_profiles <harness>: unlink hub-owned links in profile dirs no longer
+# declared for this harness. Runtime state (login, history) is left alone.
+prune_profiles() {
+  local harness="$1" dir name entry
+  for dir in "$HUB/harnesses/$harness/profiles"/*/; do
+    [ -d "$dir" ] || continue
+    dir="${dir%/}"
+    name="${dir##*/}"
+    if profile_has "$name" "$harness"; then
+      continue
+    fi
+    while IFS= read -r entry; do
+      case "$(readlink "$entry")" in
+        ../*)
+          rm "$entry"
+          echo "pruned  $entry (profile removed)"
+          ;;
+      esac
+    done < <(find "$dir" -maxdepth 2 -type l)
+    echo "WARN    $dir is no longer a $harness profile; delete it by hand" >&2
+  done
+}
+
+# profile_has <profile> <harness>: 0 when PROFILES.md lists the harness
+profile_has() {
+  local i
+  for i in ${PROFILES[@]+"${!PROFILES[@]}"}; do
+    if [ "${PROFILES[$i]}" = "$1" ]; then
+      case "${PROFILE_HARNESSES[$i]}" in
+        *" $2 "*) return 0 ;;
+      esac
+    fi
+  done
+  return 1
+}
+
+for harness in "${SELECTED[@]}"; do
+  if [ "$harness" = "claude" ]; then
+    seed_config "$HUB/harnesses/claude/settings.json" "$HUB/harnesses/claude/settings.template.json"
   fi
 
   if [ "$LINKUP" -ne 1 ]; then
@@ -482,12 +653,14 @@ for harness in "${SELECTED[@]}"; do
     link "$(ext_link_path "$harness")" "$HUB/harnesses/$harness"
   fi
 
-  prune_stale "$harness"
-
-  # per-item links for shared assets
-  for type in "${TYPES[@]}"; do
-    sync_assets "$harness" "$type"
+  # per-item links for shared assets, base dir first, then each profile
+  build_root "$harness" "harnesses/$harness"
+  for name in ${PROFILES[@]+"${PROFILES[@]}"}; do
+    if profile_has "$name" "$harness"; then
+      build_profile "$harness" "$name"
+    fi
   done
+  prune_profiles "$harness"
 done
 
 echo "done"

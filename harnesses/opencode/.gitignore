@@ -3,6 +3,9 @@ bun.lock
 package.json
 package-lock.json
 
+# Profile configs seeded by link.sh from opencode.json + opencode.template.json
+profiles/*/opencode.json
+
 # Managed by Orca. Do not edit; changes may be overwritten.
 plugins/orca-opencode-status.js
 plugins/orca-opencode-status-tui/

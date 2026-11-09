@@ -10,8 +10,12 @@ shell-snapshots/
 # Secrets; never commit or deploy
 .credentials.json
 
+# Global state (account, per-project state); lives here only in profile
+# dirs, where CLAUDE_CONFIG_DIR moves it out of $HOME
+.claude.json*
+
 # Shipped by Claude Code itself; churns with app updates
-skills/.system/
+**/skills/.system/
 
 # Synced/signed policy and settings; regenerated from Anthropic
 policy-limits.json*
@@ -19,7 +23,7 @@ remote-settings.json*
 
 # Runtime-downloaded marketplace and synced plugin/skill state
 plugins/
-skills/synced/
+**/skills/synced/
 
 # Live settings: Orca injects machine-local hooks into this exact path
 # (~/.claude symlinks here). Restore from settings.template.json.
@@ -39,7 +43,7 @@ mcp-needs-auth-cache.json
 state/
 
 # Statusline and mode files installed by plugins (caveman, ponytail) at startup
-hooks/caveman-statusline.sh
+**/hooks/caveman-statusline.sh
 ponytail-statusline.sh
 ponytail-modes/
 
