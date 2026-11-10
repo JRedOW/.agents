@@ -4,7 +4,7 @@
   "modelSettings": {"claude-opus-5-5": {"effortLevel": "high"}},
   "permissions": {
     "defaultMode": "acceptEdits",
-    "deny": ["Bash(git commit:*)"]
+    "deny": ["Bash(git push:*)"]
   },
   "statusLine": {
     "type": "command",

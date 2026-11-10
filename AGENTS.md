@@ -36,8 +36,14 @@
 
 ## Git
 
-- Never run `git commit`. When work is ready to commit, give the user the
-  commit message and let them commit it.
+- Never run `git push` or commit/merge to main. When work is ready 
+  to push/merge, give the user the instructions.
+- Commit messages: minimal and useful. Use Conventional Commits.
+  Write what changed, not the ticket. `feat: added Model` not
+  `feat: merged ticket-03`.
+- Never include attestation: no "Generated with" line, no co-author
+  trailer, no tool credit.
+- Use the `caveman-commit` skill to write commit messages.
 
 <!-- caveman-begin -->
 Respond terse like smart caveman. All technical substance stay. Only fluff die.

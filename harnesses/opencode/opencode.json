@@ -5,7 +5,6 @@
   "permission": {
     "*": "ask",
     "bash": {
-      "git commit *": "deny",
       "git diff *": "allow",
       "git log *": "allow",
       "git push *": "deny",
