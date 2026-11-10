@@ -3,7 +3,11 @@
     "mcp-for-blender*": "ask",
     "mcp-for-blender_get_addon_status": "allow",
     "mcp-for-blender_get_scene_info": "allow",
-    "mcp-for-blender_look": "allow"
+    "mcp-for-blender_look": "allow",
+    "mcp-for-blender_execute_blender_code": "allow",
+    "skill": {
+      "blender": "allow"
+    }
   },
   "agent": {
     "blender": {

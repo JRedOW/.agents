@@ -3,7 +3,9 @@
     "allow": [
       "mcp__plugin_mcp-for-blender_mcp-for-blender__get_addon_status",
       "mcp__plugin_mcp-for-blender_mcp-for-blender__get_scene_info",
-      "mcp__plugin_mcp-for-blender_mcp-for-blender__look"
+      "mcp__plugin_mcp-for-blender_mcp-for-blender__look",
+      "mcp__plugin_mcp-for-blender_mcp-for-blender__execute_blender_code",
+      "Skill(blender)"
     ]
   },
   "enabledPlugins": {
