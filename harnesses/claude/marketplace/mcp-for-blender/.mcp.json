@@ -2,7 +2,7 @@
   "mcpServers": {
     "mcp-for-blender": {
       "command": "uvx",
-      "args": ["mcp-for-blender@2.2.8"],
+      "args": ["mcp-for-blender@2.2.9"],
       "env": {
         "BLENDER_MCP_SAFE_MODE": "1"
       }
