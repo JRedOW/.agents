@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-deps.sh — iterate the DEPENDENCIES.md table. Each Local version cell
+# check-deps.sh — iterate the HARNESSES.md and DEPENDENCIES.md tables. Each Local version cell
 # declares its own release source: "x.y.z (github owner/repo)" or
 # "x.y.z (pypi package)". Cells without that form are skipped.
 # Outdated rows are reported; edit the table manually.
@@ -12,6 +12,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DEPS="$ROOT/DEPENDENCIES.md"
+HARNESSES="$ROOT/HARNESSES.md"
 
 status=0
 CREATE_ISSUES=0
@@ -75,8 +76,9 @@ if [[ "$CREATE_ISSUES" == 1 ]]; then
   gh label create dependencies --description "Outdated dependency tracking" --color BFD4F2 --repo "$GH_REPO" >/dev/null 2>&1 || true
 fi
 
-# iterate data rows of the table (skip header + separator); process
+# iterate data rows of a table (skip header + separator); process
 # substitution keeps `status` exported from the loop subshell
+check_table() {  # <markdown file>
 while IFS='|' read -r _ dep repo ver _; do
   localv="" src="" kind="" target="" latest=""  # reset per row (set -u)
   name="$(printf '%s' "$dep" | sed 's/^ *//;s/ *$//')"
@@ -139,6 +141,10 @@ while IFS='|' read -r _ dep repo ver _; do
       fi
     fi
   fi
-done < <(grep '^|' "$DEPS" | grep -v '^| *[:-]*[ |-]*$' | sed '1d')
+done < <(grep '^|' "$1" | grep -v '^| *[:-]*[ |-]*$' | sed '1d')
+}
+
+check_table "$HARNESSES"
+check_table "$DEPS"
 
 exit "$status"
