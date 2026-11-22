@@ -28,6 +28,8 @@ plugins/
 # Live settings: Orca injects machine-local hooks into this exact path
 # (~/.claude symlinks here). Restore from settings.template.json.
 settings.json
+# Copies of live settings made by other tools (e.g. Roblox Studio)
+settings.json.*
 
 # Per-session temp state
 session-env/
@@ -59,6 +61,15 @@ plans/
 
 # File history snapshots
 file-history/
+
+# Pasted prompt cache; may hold secrets
+paste-cache/
+
+# Locally queued feedback drafts
+feedback/
+
+# Telemetry spool
+telemetry/
 
 # Orca agent-view setup state and its injected keybinding
 orca-agent-view.json
