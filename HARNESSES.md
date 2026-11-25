@@ -7,7 +7,7 @@ The agent harnesses this repo configures. Third-party plugins and MCP servers ar
 | Harness | Repository | Local version |
 |---|---|---|
 | opencode | https://github.com/sst/opencode | 1.19.6 (github sst/opencode) |
-| Claude Code | https://github.com/anthropics/claude-code | 2.1.331 (github anthropics/claude-code) |
+| Claude Code | https://github.com/anthropics/claude-code | 2.1.332 (github anthropics/claude-code) |
 
 To update:
 
