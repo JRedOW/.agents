@@ -19,7 +19,7 @@
       "type": "local",
       "command": [
         "uvx",
-        "mcp-for-blender@2.3.1"
+        "mcp-for-blender@2.3.3"
       ],
       "environment": {
         "BLENDER_MCP_SAFE_MODE": "1",
